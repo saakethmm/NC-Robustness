@@ -36,9 +36,9 @@
     "optimizer": {
         "type": "SGD",
         "args":{
-            "lr": 0.1,
+            "lr": 0.01,
             "momentum": 0.9,
-            "weight_decay": 1e-4
+            "weight_decay": 1e-3
         }
     },
 
@@ -50,10 +50,10 @@
     ],
 
     "lr_scheduler": {
-        "type": "MultiStepLR",
+        "type": "CosineAnnealingWarmRestarts",
         "args": {
-            "milestones": [40, 80, 160],
-            "gamma": 0.1
+            "T_0": 10,
+            "eta_min": 0.001
         }
     },
 
