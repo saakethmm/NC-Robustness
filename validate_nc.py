@@ -226,6 +226,15 @@ def compute_Sigma_B(mu_c_dict, mu_G):
 
     return Sigma_B.cpu().numpy()
 
+def compute_ETF(W):
+    K = W.shape[0]
+    WWT = torch.mm(W, W.T)
+    WWT /= torch.norm(WWT, p='fro')
+
+    sub = (torch.eye(K) - 1 / K * torch.ones((K, K))).cuda() / pow(K - 1, 0.5)
+    ETF_metric = torch.norm(WWT - sub, p='fro')
+    return ETF_metric.detach().cpu().numpy().item()
+
 
 def compute_W_H_relation(W, mu_c_dict, mu_G):
     K = len(mu_c_dict)
@@ -307,6 +316,7 @@ def main():
 
     info_dict = {
                  'collapse_metric': [],
+                 'ETF_metric': [],
                  'WH_relation_metric': [],
                  'W': [],
                  'b': [],
@@ -349,9 +359,11 @@ def main():
         Sigma_B = compute_Sigma_B(mu_c_dict_train, mu_G_train)
 
         collapse_metric = np.trace(Sigma_W @ scilin.pinv(Sigma_B)) / len(mu_c_dict_train)
+        ETF_metric = compute_ETF(W)
         WH_relation_metric = compute_W_H_relation(W, mu_c_dict_train, mu_G_train) # Added back
 
         info_dict['collapse_metric'].append(collapse_metric)
+        info_dict['ETF_metric'].append(ETF_metric)
         info_dict['WH_relation_metric'].append(WH_relation_metric) # Added back
         info_dict['mu_G_train'].append(mu_G_train.detach().cpu().numpy())
         info_dict['mu_G_test'].append(mu_G_test.detach().cpu().numpy())
