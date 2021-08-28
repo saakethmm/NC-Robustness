@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 #from mpl_toolkits.mplot3d import Axes3D
 import random
+import pickle
+from utils import validate_nc_epoch, plot_nc
 
 class BaseTrainer:
     """
@@ -72,6 +74,26 @@ class BaseTrainer:
         # setup visualization writer instance        
         if config.resume is not None:
             self._resume_checkpoint(config.resume)
+        
+        self.info_dict = {
+                 'collapse_metric': [],
+                 'ETF_metric': [],
+                 'WH_relation_metric': [],
+                 'W': [],
+                 'b': [],
+                 'mu_G_train': [],
+                 'mu_G_test': [],
+                 'mu_c_dict_train': [],
+                 'mu_c_dict_test': [],
+                 'before_class_dict_train': {},
+                 'after_class_dict_train': {},
+                 'before_class_dict_test': {},
+                 'after_class_dict_test': {},
+                 'train_acc1': [],
+                 'train_acc5': [],
+                 'test_acc1': [],
+                 'test_acc5': []
+                 }
 
     @abstractmethod
     def _train_epoch(self, epoch):
@@ -133,6 +155,20 @@ class BaseTrainer:
 
             if (epoch - 1) % self.save_period == 0:
                 self._save_checkpoint(epoch, save_best=best)
+            
+            ######### Added #################################################
+            self._validate_nc(epoch)
+            
+        with open(str(self.checkpoint_dir / 'info.pkl'), 'wb') as f: 
+            pickle.dump(self.info_dict, f)
+        # Plot
+        fig_collapse, fig_etf, fig_wh, fig_train_acc, fig_test_acc = plot_nc(self.info_dict, self.epochs + 1)
+        fig_collapse.savefig(str(self.checkpoint_dir / "NC_1.pdf"), bbox_inches='tight')
+        fig_etf.savefig(str(self.checkpoint_dir / "NC_2.pdf"), bbox_inches='tight')
+        fig_wh.savefig(str(self.checkpoint_dir / "NC_3.pdf"), bbox_inches='tight')
+        fig_train_acc.savefig(str(self.checkpoint_dir / "train_acc.pdf"), bbox_inches='tight')
+        fig_test_acc.savefig(str(self.checkpoint_dir / "test_acc.pdf"), bbox_inches='tight')
+            ################################################################
 
         self.writer.finalize()
 
@@ -169,20 +205,14 @@ class BaseTrainer:
             'optimizer': self.optimizer.state_dict(),
             'monitor_best': self.mnt_best
         }
-        # filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.pth'.format(epoch))
-        # torch.save(state, filename)
-        # self.logger.info("Saving checkpoint: {} ...".format(filename))
+
         path = str(self.checkpoint_dir / f'model_epoch_{epoch}.pth')
         torch.save(state, path)
         self.logger.info("Saving current model: current model save at: {} ...".format(path))
-#         if save_best:
-#             best_path = str(self.checkpoint_dir / 'model_best.pth')
-#             torch.save(state, best_path)
-#             self.logger.info("Saving current best: model_best.pth at: {} ...".format(best_path))
-#         else:
-#             path = str(self.checkpoint_dir / 'model_last.pth')
-#             torch.save(state, path)
-#             self.logger.info("Saving current model: current model save at: {} ...".format(path))
+    
+    def _validate_nc(self, epoch):
+        validate_nc_epoch(self.checkpoint_dir, epoch, self.model, 
+                          self.data_loader, self.test_data_loader, self.info_dict)
 
 
     def _resume_checkpoint(self, resume_path):
