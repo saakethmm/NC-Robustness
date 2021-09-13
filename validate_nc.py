@@ -11,6 +11,7 @@ import argparse
 import os
 import numpy as np
 from torchvision.datasets import CIFAR10, MNIST
+from data_loader.mini_imagenet import MiniImagenet
 from utils import load_from_state_dict
 
 
@@ -18,6 +19,8 @@ MNIST_TRAIN_SAMPLES = (5923, 6742, 5958, 6131, 5842, 5421, 5918, 6265, 5851, 594
 MNIST_TEST_SAMPLES = (980, 1135, 1032, 1010, 982, 892, 958, 1028, 974, 1009)
 CIFAR10_TRAIN_SAMPLES = 10 * (5000,)
 CIFAR10_TEST_SAMPLES = 10 * (1000,)
+Mimagenet_TRAIN_SAMPLES = 100 * (500,)
+Mimagenet_TEST_SAMPLES = 100 * (100,)
 
 class CIFAR10_subs(CIFAR10):
     def __init__(self, **kwargs):
@@ -102,10 +105,10 @@ def parse_eval_args():
     parser.add_argument('--gpu_id', type=int, default=0)
 
     # Directory Setting
-    parser.add_argument('--dataset', type=str, choices=['mnist', 'cifar10', 'cifar10_random'], default='cifar10')
+    parser.add_argument('--dataset', type=str, choices=['mnist', 'cifar10', 'cifar10_random', 'miniimagenet'], default='cifar10')
     parser.add_argument('--data_dir', type=str, default='/scratch/xl998/DL/data')
     parser.add_argument('--load_path', type=str, default=None)
-    parser.add_argument('--p_name', type=str, default=None)
+    parser.add_argument('--p_name', type=str, default="info_new.pkl")
 
     # Learning Options
     parser.add_argument('--epochs', type=int, default=150, help='Max Epochs')
@@ -180,6 +183,15 @@ def compute_info(args, model, fc_features, dataloader, isTrain=True):
             mu_G /= sum(CIFAR10_TEST_SAMPLES)
             for i in range(len(CIFAR10_TEST_SAMPLES)):
                 mu_c_dict[i] /= CIFAR10_TEST_SAMPLES[i]
+    elif args.dataset == 'miniimagenet':
+        if isTrain:
+            mu_G /= sum(Mimagenet_TRAIN_SAMPLES)
+            for i in range(len(Mimagenet_TRAIN_SAMPLES)):
+                mu_c_dict[i] /= Mimagenet_TRAIN_SAMPLES[i]
+        else:
+            mu_G /= sum(Mimagenet_TEST_SAMPLES)
+            for i in range(len(Mimagenet_TEST_SAMPLES)):
+                mu_c_dict[i] /= Mimagenet_TEST_SAMPLES[i]
 
     return mu_G, mu_c_dict, before_class_dict, after_class_dict, top1.avg, top5.avg
 
@@ -212,6 +224,11 @@ def compute_Sigma_W(args, model, fc_features, mu_c_dict, dataloader, isTrain=Tru
             Sigma_W /= sum(CIFAR10_TRAIN_SAMPLES)
         else:
             Sigma_W /= sum(CIFAR10_TEST_SAMPLES)
+    elif args.dataset == 'miniimagenet':
+        if isTrain:
+            Sigma_W /= sum(Mimagenet_TRAIN_SAMPLES)
+        else:
+            Sigma_W /= sum(Mimagenet_TEST_SAMPLES)
 
     return Sigma_W.cpu().numpy()
 
@@ -235,6 +252,28 @@ def compute_ETF(W):
     ETF_metric = torch.norm(WWT - sub, p='fro')
     return ETF_metric.detach().cpu().numpy().item()
 
+# def compute_nuclear_metric(all_features):
+#     #all_features = info_pkl['before_class_dict_train'] # all features should be this
+#     singular_values_dict = {} # each key contains the class's singular value array
+#     for i in all_features: 
+#         class_feature = np.array(all_features[i])
+#         _,s,_ = np.linalg.svd(class_feature) # s is all singular values
+#         singular_values_dict[i] = s
+#     #print(len(singular_values_dict)) # sanity check
+#     return singular_values_dict
+
+def compute_nuclear_frobenius(all_features):
+    #all_features = info_pkl['before_class_dict_train'] # all features should be this
+    nf_metric_list = []
+    for i in all_features: 
+        class_feature = np.array(all_features[i])
+        _,s,_ = np.linalg.svd(class_feature) # s is all singular values
+        nuclear_norm = np.sum(s)
+        frobenius_norm = np.linalg.norm(class_feature, ord='fro')
+        nf_metric_class = nuclear_norm / frobenius_norm
+        nf_metric_list.append(nf_metric_class)
+    nf_metric = np.mean(nf_metric_list)
+    return nf_metric
 
 def compute_W_H_relation(W, mu_c_dict, mu_G):
     K = len(mu_c_dict)
@@ -269,42 +308,66 @@ def main():
     args.device = device
     
     # Dataset part
-    transform_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
+    if args.dataset == "cifar10":
+        num_classes = 10
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
 
-    transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
 
-    trainset = torchvision.datasets.CIFAR10(
-        root=args.data_dir, train=True, download=True, transform=transform_train)
-#     trainset = CIFAR10_subs(
-#         root=args.data_dir, train=True, download=True, transform=transform_train)
-    trainloader = torch.utils.data.DataLoader(
-        trainset, batch_size=128, shuffle=True, num_workers=2)
+        trainset = torchvision.datasets.CIFAR10(
+            root=args.data_dir, train=True, download=True, transform=transform_train)
+        trainloader = torch.utils.data.DataLoader(
+            trainset, batch_size=128, shuffle=True, num_workers=2)
 
-    testset = torchvision.datasets.CIFAR10(
-        root=args.data_dir, train=False, download=True, transform=transform_test)
-#     testset = CIFAR10_subs(
-#         root=args.data_dir, train=False, download=True, transform=transform_test)
-    testloader = torch.utils.data.DataLoader(
-        testset, batch_size=100, shuffle=False, num_workers=2)
+        testset = torchvision.datasets.CIFAR10(
+            root=args.data_dir, train=False, download=True, transform=transform_test)
+        testloader = torch.utils.data.DataLoader(
+            testset, batch_size=100, shuffle=False, num_workers=2)
+    elif args.dataset == "miniimagenet":
+        num_classes = 100
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(84, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ])
+
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ])
+        
+        trainset = MiniImagenet(
+            args.data_dir, "train", None, np.arange(50000), transform=transform_train, target_transform=None)
+        trainloader = torch.utils.data.DataLoader(
+            trainset, batch_size=128, shuffle=True, num_workers=2)
+
+        testset = MiniImagenet(
+            args.data_dir, "test", None, None, transform=transform_test, target_transform=None)
+        testloader = torch.utils.data.DataLoader(
+            testset, batch_size=100, shuffle=False, num_workers=2)
+    else:
+        print("That dataset is not yet implemented!")
+    
     
     # Model part
     if args.ETF_fc:
-        model = ResNet18(num_classes=10,
+        model = ResNet18(num_classes=num_classes,
                      norm_layer_type="bn",
                      conv_layer_type="conv",
                      linear_layer_type="linear",
                      activation_layer_type="relu",
                      etf_fc = True).to(device)
     else:
-        model = ResNet18(num_classes=10,
+        model = ResNet18(num_classes=num_classes,
                      norm_layer_type="bn",
                      conv_layer_type="conv",
                      linear_layer_type="linear",
@@ -316,6 +379,7 @@ def main():
 
     info_dict = {
                  'collapse_metric': [],
+                 'nuclear_metric': [],
                  'ETF_metric': [],
                  'WH_relation_metric': [],
                  'W': [],
@@ -360,6 +424,12 @@ def main():
 
         collapse_metric = np.trace(Sigma_W @ scilin.pinv(Sigma_B)) / len(mu_c_dict_train)
         ETF_metric = compute_ETF(W)
+        
+        # Add for nuclear metric
+        #nuclear_epoch = compute_nuclear_metric(before_class_dict_train)
+        nf_metric_epoch = compute_nuclear_frobenius(before_class_dict_train)
+        info_dict['nuclear_metric'].append(nf_metric_epoch)
+    
         WH_relation_metric = compute_W_H_relation(W, mu_c_dict_train, mu_G_train) # Added back
 
         info_dict['collapse_metric'].append(collapse_metric)

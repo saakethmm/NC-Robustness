@@ -100,6 +100,55 @@ with open(PATH_TO_INFO_ETFfc_true_fixdim_true, 'rb') as f:
 XTICKS = [0, 50, 100, 150, 200]
 
 
+
+###################### Added #########################
+# def plot_nuclear():
+#     fig = plt.figure(figsize=(10, 8))
+#     plt.grid(True)
+#     all_singular = info['nuclear_metric']
+#     nuclear_norm_list = [] # final outcome, # of epochs list contain average nuclear norm of all classes, each epoch
+    
+#     for i in range(len(all_singular)):
+#         epoch_nuclear = all_singular[i]
+#         temp = [] #store sum of singular values of different class
+#         for j in epoch_nuclear: # for each class
+#             s = epoch_nuclear[j]
+#             s /= np.max(s) # normalize by spectral norm
+#             temp.append(np.sum(s))
+#         nuclear_norm_list.append(np.mean(temp)) # mean value of nuclear norm of each class
+#     print(len(nuclear_norm_list))
+#     plt.plot(nuclear_norm_list, 'c', marker='v', ms=16, markevery=25, linewidth=5, alpha=0.7)
+
+#     plt.xlabel('Epoch', fontsize=40)
+#     plt.ylabel('Avg. Nuclear Norm (feature)', fontsize=40)
+#     plt.xticks(XTICKS, fontsize=30)
+
+#     ymax = np.max(nuclear_norm_list) + 5
+#     plt.yticks(np.arange(0, ymax, int(ymax/5)), fontsize=30) 
+    
+#     plt.axis([0, 150, 0, ymax])  
+
+#     return fig
+
+def plot_nuclear():
+    fig = plt.figure(figsize=(10, 8))
+    plt.grid(True)
+    all_nf_metric = info['nuclear_metric']
+    
+    plt.plot(all_nf_metric, 'c', marker='v', ms=16, markevery=25, linewidth=5, alpha=0.7)
+
+    plt.xlabel('Epoch', fontsize=40)
+    plt.ylabel('Avg. class NF_metric', fontsize=40)
+    plt.xticks(XTICKS, fontsize=30)
+
+    ymax = np.max(all_nf_metric) + 0.5
+    plt.yticks(np.arange(0, ymax, int(ymax/5)), fontsize=30) 
+    
+    plt.axis([0, 150, 0, ymax])  
+
+    return fig
+
+
 def plot_collapse():
     fig = plt.figure(figsize=(10, 8))
     plt.grid(True)

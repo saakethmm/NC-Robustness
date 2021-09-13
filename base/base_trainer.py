@@ -55,6 +55,12 @@ class BaseTrainer:
         self.epochs = cfg_trainer['epochs']
         self.save_period = cfg_trainer['save_period']
         self.monitor = cfg_trainer.get('monitor', 'off')
+        dataloader_name = config['data_loader']['type']
+        if "CIFAR10" in dataloader_name:
+            self.dataset = "cifar10"
+        elif "MiniImageNet" in dataloader_name:
+            self.dataset = "miniimagenet"
+        print(f"Using {self.dataset} dataset.")
 
         # configuration to monitor model performance and save best
         if self.monitor == 'off':
@@ -77,6 +83,8 @@ class BaseTrainer:
         
         self.info_dict = {
                  'collapse_metric': [],
+                 'nuclear_metric': [], # #of epoch big lists, under each big list: dict with # of class keys, under each key, an array contains
+                                       # all singular values of this epoch this class
                  'ETF_metric': [],
                  'WH_relation_metric': [],
                  'W': [],
@@ -162,8 +170,9 @@ class BaseTrainer:
         with open(str(self.checkpoint_dir / 'info.pkl'), 'wb') as f: 
             pickle.dump(self.info_dict, f)
         # Plot
-        fig_collapse, fig_etf, fig_wh, fig_train_acc, fig_test_acc = plot_nc(self.info_dict, self.epochs + 1)
+        fig_collapse, fig_nuclear_metric, fig_etf, fig_wh, fig_train_acc, fig_test_acc = plot_nc(self.info_dict, self.epochs + 1)
         fig_collapse.savefig(str(self.checkpoint_dir / "NC_1.pdf"), bbox_inches='tight')
+        fig_nuclear_metric.savefig(str(self.checkpoint_dir / "NF_metric.pdf"), bbox_inches='tight')
         fig_etf.savefig(str(self.checkpoint_dir / "NC_2.pdf"), bbox_inches='tight')
         fig_wh.savefig(str(self.checkpoint_dir / "NC_3.pdf"), bbox_inches='tight')
         fig_train_acc.savefig(str(self.checkpoint_dir / "train_acc.pdf"), bbox_inches='tight')
@@ -211,8 +220,13 @@ class BaseTrainer:
         self.logger.info("Saving current model: current model save at: {} ...".format(path))
     
     def _validate_nc(self, epoch):
-        validate_nc_epoch(self.checkpoint_dir, epoch, self.model, 
-                          self.data_loader, self.test_data_loader, self.info_dict)
+        collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric = validate_nc_epoch(self.checkpoint_dir, epoch, self.model, 
+                          self.data_loader, self.test_data_loader, self.info_dict, self.dataset)
+        
+        self.writer.add_scalar({'NC_1': collapse_metric}, epoch = epoch)
+        self.writer.add_scalar({'NF_metric': nf_metric_epoch}, epoch = epoch)
+        self.writer.add_scalar({'NC_2': ETF_metric}, epoch = epoch)
+        self.writer.add_scalar({'NC_3': WH_relation_metric}, epoch = epoch)
 
 
     def _resume_checkpoint(self, resume_path):
