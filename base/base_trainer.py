@@ -87,6 +87,9 @@ class BaseTrainer:
                                        # all singular values of this epoch this class
                  'ETF_metric': [],
                  'WH_relation_metric': [],
+                 'Wh_b_relation_metric': [],
+                 'prob_margin': [],
+                 'cos_margin': [],
                  'W': [],
                  'b': [],
                  'mu_G_train': [],
@@ -170,11 +173,16 @@ class BaseTrainer:
         with open(str(self.checkpoint_dir / 'info.pkl'), 'wb') as f: 
             pickle.dump(self.info_dict, f)
         # Plot
-        fig_collapse, fig_nuclear_metric, fig_etf, fig_wh, fig_train_acc, fig_test_acc = plot_nc(self.info_dict, self.epochs + 1)
+        fig_collapse, fig_nuclear_metric, fig_etf, fig_wh, fig_whb,\
+        fig_prob_margin, fig_cos_margin, fig_train_acc, fig_test_acc = plot_nc(self.info_dict, self.epochs + 1)
+
         fig_collapse.savefig(str(self.checkpoint_dir / "NC_1.pdf"), bbox_inches='tight')
         fig_nuclear_metric.savefig(str(self.checkpoint_dir / "NF_metric.pdf"), bbox_inches='tight')
         fig_etf.savefig(str(self.checkpoint_dir / "NC_2.pdf"), bbox_inches='tight')
         fig_wh.savefig(str(self.checkpoint_dir / "NC_3.pdf"), bbox_inches='tight')
+        fig_whb.savefig(str(self.checkpoint_dir / "NC_4.pdf"), bbox_inches='tight')
+        fig_prob_margin.savefig(str(self.checkpoint_dir / "prob_margin.pdf"), bbox_inches='tight')
+        fig_cos_margin.savefig(str(self.checkpoint_dir / "cos_margin.pdf"), bbox_inches='tight')
         fig_train_acc.savefig(str(self.checkpoint_dir / "train_acc.pdf"), bbox_inches='tight')
         fig_test_acc.savefig(str(self.checkpoint_dir / "test_acc.pdf"), bbox_inches='tight')
             ################################################################
@@ -220,13 +228,23 @@ class BaseTrainer:
         self.logger.info("Saving current model: current model save at: {} ...".format(path))
     
     def _validate_nc(self, epoch):
-        collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric = validate_nc_epoch(self.checkpoint_dir, epoch, self.model, 
-                          self.data_loader, self.test_data_loader, self.info_dict, self.dataset)
+        collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric, Wh_b_relation_metric, \
+        avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = validate_nc_epoch(
+            self.checkpoint_dir, epoch, self.model, self.data_loader, self.test_data_loader, self.info_dict
+        )
         
-        self.writer.add_scalar({'NC_1': collapse_metric}, epoch = epoch)
-        self.writer.add_scalar({'NF_metric': nf_metric_epoch}, epoch = epoch)
-        self.writer.add_scalar({'NC_2': ETF_metric}, epoch = epoch)
-        self.writer.add_scalar({'NC_3': WH_relation_metric}, epoch = epoch)
+        self.writer.add_scalar({'NC_1': collapse_metric}, epoch=epoch)
+        self.writer.add_scalar({'NF_metric': nf_metric_epoch}, epoch=epoch)
+        self.writer.add_scalar({'NC_2': ETF_metric}, epoch=epoch)
+        self.writer.add_scalar({'NC_3': WH_relation_metric}, epoch=epoch)
+        self.writer.add_scalar({'NC_4': Wh_b_relation_metric}, epoch=epoch)
+        self.writer.add_scalar({'prob_margin': avg_prob_margin}, epoch=epoch)
+        self.writer.add_scalar({'cos_margin': avg_cos_margin}, epoch=epoch)
+        self.writer.add_plot('prob_margin_distribution', prob_margin_dist_fig, epoch=epoch)
+        self.writer.add_plot('cos_margin_distribution', cos_margin_dist_fig, epoch=epoch)
+
+
+
 
 
     def _resume_checkpoint(self, resume_path):

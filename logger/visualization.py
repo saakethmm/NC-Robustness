@@ -95,11 +95,11 @@ class CometWriter:
         else:
             self.experiment.log_metrics(metrics_renamed, epoch=epoch)
 
-    def add_plot(self, figure_name, figure):
+    def add_plot(self, figure_name, figure, epoch=None):
         """
         Primarily for log gate plots
         """
-        self.experiment.log_figure(figure_name = figure_name, figure = figure)
+        self.experiment.log_figure(figure_name = figure_name, figure = figure, step = epoch)
 
     def add_hist3d(self, hist, name):
         """

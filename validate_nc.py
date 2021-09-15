@@ -10,17 +10,11 @@ from models.resnet import ResNet18
 import argparse
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from torchvision.datasets import CIFAR10, MNIST
 from data_loader.mini_imagenet import MiniImagenet
 from utils import load_from_state_dict
 
-
-MNIST_TRAIN_SAMPLES = (5923, 6742, 5958, 6131, 5842, 5421, 5918, 6265, 5851, 5949)
-MNIST_TEST_SAMPLES = (980, 1135, 1032, 1010, 982, 892, 958, 1028, 974, 1009)
-CIFAR10_TRAIN_SAMPLES = 10 * (5000,)
-CIFAR10_TEST_SAMPLES = 10 * (1000,)
-Mimagenet_TRAIN_SAMPLES = 100 * (500,)
-Mimagenet_TEST_SAMPLES = 100 * (100,)
 
 class CIFAR10_subs(CIFAR10):
     def __init__(self, **kwargs):
@@ -106,7 +100,7 @@ def parse_eval_args():
 
     # Directory Setting
     parser.add_argument('--dataset', type=str, choices=['mnist', 'cifar10', 'cifar10_random', 'miniimagenet'], default='cifar10')
-    parser.add_argument('--data_dir', type=str, default='/scratch/xl998/DL/data')
+    parser.add_argument('--data_dir', type=str, default='/home/jinxin/data')
     parser.add_argument('--load_path', type=str, default=None)
     parser.add_argument('--p_name', type=str, default="info_new.pkl")
 
@@ -130,9 +124,26 @@ class FCFeatures:
         self.outputs = []
 
 
-def compute_info(args, model, fc_features, dataloader, isTrain=True):
+def split_array(input_array, batchsize=128):
+    input_size = input_array.shape[0]
+    num_splits, res_splits = input_size // batchsize, input_size % batchsize
+    output_array_list = list()
+    if res_splits == 0:
+        output_array_list = np.split(input_array, batchsize, axis=0)
+    else:
+        for i in range(num_splits):
+            output_array_list.append(input_array[i*batchsize:(i+1)*batchsize])
+
+        output_array_list.append(input_array[num_splits*batchsize:])
+
+    return output_array_list
+
+
+def compute_info(args, model, fc_features, dataloader):
+    num_data = 0
     mu_G = 0
     mu_c_dict = dict()
+    num_class_dict = dict()
     before_class_dict = dict()
     after_class_dict = dict()
     top1 = AverageMeter()
@@ -156,81 +167,41 @@ def compute_info(args, model, fc_features, dataloader, isTrain=True):
                 mu_c_dict[y] = features[b, :]
                 before_class_dict[y] = [features[b, :].detach().cpu().numpy()]
                 after_class_dict[y] = [outputs[b, :].detach().cpu().numpy()]
+                num_class_dict[y] = 1
             else:
                 mu_c_dict[y] += features[b, :]
                 before_class_dict[y].append(features[b, :].detach().cpu().numpy())
                 after_class_dict[y].append(outputs[b, :].detach().cpu().numpy())
+                num_class_dict[y] = num_class_dict[y] + 1
+
+        num_data += targets.shape[0]
 
         prec1, prec5 = compute_accuracy(outputs.data, targets.data, topk=(1, 5))
         top1.update(prec1.item(), inputs.size(0))
         top5.update(prec5.item(), inputs.size(0))
 
-    if args.dataset == 'mnist':
-        if isTrain:
-            mu_G /= sum(MNIST_TRAIN_SAMPLES)
-            for i in range(len(MNIST_TRAIN_SAMPLES)):
-                mu_c_dict[i] /= MNIST_TRAIN_SAMPLES[i]
-        else:
-            mu_G /= sum(MNIST_TEST_SAMPLES)
-            for i in range(len(MNIST_TEST_SAMPLES)):
-                mu_c_dict[i] /= MNIST_TEST_SAMPLES[i]
-    elif args.dataset == 'cifar10' or args.dataset == 'cifar10_random':
-        if isTrain:
-            mu_G /= sum(CIFAR10_TRAIN_SAMPLES)
-            for i in range(len(CIFAR10_TRAIN_SAMPLES)):
-                mu_c_dict[i] /= CIFAR10_TRAIN_SAMPLES[i]
-        else:
-            mu_G /= sum(CIFAR10_TEST_SAMPLES)
-            for i in range(len(CIFAR10_TEST_SAMPLES)):
-                mu_c_dict[i] /= CIFAR10_TEST_SAMPLES[i]
-    elif args.dataset == 'miniimagenet':
-        if isTrain:
-            mu_G /= sum(Mimagenet_TRAIN_SAMPLES)
-            for i in range(len(Mimagenet_TRAIN_SAMPLES)):
-                mu_c_dict[i] /= Mimagenet_TRAIN_SAMPLES[i]
-        else:
-            mu_G /= sum(Mimagenet_TEST_SAMPLES)
-            for i in range(len(Mimagenet_TEST_SAMPLES)):
-                mu_c_dict[i] /= Mimagenet_TEST_SAMPLES[i]
+    mu_G /= num_data
+    for i in range(len(mu_c_dict.keys())):
+        mu_c_dict[i] /= num_class_dict[i]
 
     return mu_G, mu_c_dict, before_class_dict, after_class_dict, top1.avg, top5.avg
 
 
-def compute_Sigma_W(args, model, fc_features, mu_c_dict, dataloader, isTrain=True):
-
+def compute_Sigma_W(args, before_class_dict, mu_c_dict, batchsize=128):
+    num_data = 0
     Sigma_W = 0
-    for batch_idx, (inputs, targets) in enumerate(dataloader):
 
-        inputs, targets = inputs.to(args.device), targets.to(args.device)
+    for target in before_class_dict.keys():
+        class_feature_list = split_array(np.array(before_class_dict[target]), batchsize=batchsize)
+        for features in class_feature_list:
+            features = torch.from_numpy(features).to(args.device)
+            Sigma_W_batch = (features - mu_c_dict[target].unsqueeze(0)).unsqueeze(2) * (
+                        features - mu_c_dict[target].unsqueeze(0)).unsqueeze(1)
+            Sigma_W += torch.sum(Sigma_W_batch, dim=0)
+            num_data += features.shape[0]
 
-        with torch.no_grad():
-            outputs = model(inputs)
-            #fea, outputs = model(inputs)
-            
-        features = fc_features.outputs[0][0]
-        fc_features.clear()
-
-        for b in range(len(targets)):
-            y = targets[b].item()
-            Sigma_W += (features[b, :] - mu_c_dict[y]).unsqueeze(1) @ (features[b, :] - mu_c_dict[y]).unsqueeze(0)
-
-    if args.dataset == 'mnist':
-        if isTrain:
-            Sigma_W /= sum(MNIST_TRAIN_SAMPLES)
-        else:
-            Sigma_W /= sum(MNIST_TEST_SAMPLES)
-    elif args.dataset == 'cifar10' or args.dataset == 'cifar10_random':
-        if isTrain:
-            Sigma_W /= sum(CIFAR10_TRAIN_SAMPLES)
-        else:
-            Sigma_W /= sum(CIFAR10_TEST_SAMPLES)
-    elif args.dataset == 'miniimagenet':
-        if isTrain:
-            Sigma_W /= sum(Mimagenet_TRAIN_SAMPLES)
-        else:
-            Sigma_W /= sum(Mimagenet_TEST_SAMPLES)
-
-    return Sigma_W.cpu().numpy()
+    Sigma_W /= num_data
+    return Sigma_W.detach().cpu().numpy()
 
 
 def compute_Sigma_B(mu_c_dict, mu_G):
@@ -251,6 +222,7 @@ def compute_ETF(W):
     sub = (torch.eye(K) - 1 / K * torch.ones((K, K))).cuda() / pow(K - 1, 0.5)
     ETF_metric = torch.norm(WWT - sub, p='fro')
     return ETF_metric.detach().cpu().numpy().item()
+
 
 # def compute_nuclear_metric(all_features):
 #     #all_features = info_pkl['before_class_dict_train'] # all features should be this
@@ -275,6 +247,50 @@ def compute_nuclear_frobenius(all_features):
     nf_metric = np.mean(nf_metric_list)
     return nf_metric
 
+
+def compute_margin(args, before_class_dict, after_class_dict, W, b, mu_G, batchsize=128):
+    num_data = 0
+    avg_prob_margin = 0
+    avg_cos_margin = 0
+    all_prob_margin = list()
+    all_cos_margin = list()
+
+    for target in after_class_dict.keys():
+        class_features_list = split_array(np.array(before_class_dict[target]), batchsize=batchsize)
+        class_outputs_list = split_array(np.array(after_class_dict[target]), batchsize=batchsize)
+        for i in range(len(class_outputs_list)):
+            features, outputs = torch.from_numpy(class_features_list[i]).to(args.device), torch.from_numpy(class_outputs_list[i]).to(args.device)
+
+            false_outputs = outputs.clone()
+            false_outputs[:, target] = -np.inf
+            false_targets = torch.argmax(false_outputs, dim=1)
+            probs = torch.nn.functional.softmax(outputs, dim=1)
+
+            prob_margin = probs[:, target] - torch.gather(probs, 1, false_targets.unsqueeze(1)).reshape(-1)
+            all_prob_margin.append(prob_margin.detach().cpu().numpy())
+            avg_prob_margin += torch.sum(prob_margin)
+
+            cos_outputs = (outputs - b.unsqueeze(0)) / (torch.norm(features - mu_G.unsqueeze(0), dim=1, keepdim=True) * torch.norm(W.T, dim=0, keepdim=True))
+            false_cos_outputs = cos_outputs.clone()
+            false_cos_outputs[:, target] = -np.inf
+            false_cos_targets = torch.argmax(false_cos_outputs, dim=1)
+
+            cos_margin = cos_outputs[:, target] - torch.gather(false_cos_outputs, 1, false_cos_targets.unsqueeze(1)).reshape(-1)
+            all_cos_margin.append(cos_margin.detach().cpu().numpy())
+            avg_cos_margin += torch.sum(cos_margin)
+
+            num_data += features.shape[0]
+
+    avg_prob_margin /= num_data
+    avg_cos_margin /= num_data
+    all_prob_margin = np.sort(np.concatenate(all_prob_margin, axis=0))
+    all_cos_margin = np.sort(np.concatenate(all_cos_margin, axis=0))
+
+    prob_margin_dist_fig = plot_prob_margin_distribution(all_prob_margin)
+    cos_margin_dist_fig = plot_cos_margin_distribution(all_cos_margin)
+    return avg_prob_margin.item(), avg_cos_margin.item(), prob_margin_dist_fig, cos_margin_dist_fig
+
+
 def compute_W_H_relation(W, mu_c_dict, mu_G):
     K = len(mu_c_dict)
     M = torch.empty(mu_c_dict[0].shape[0], K)
@@ -297,6 +313,47 @@ def compute_W_H_relation(W, mu_c_dict, mu_G):
     return res.detach().cpu().numpy()
 
 
+def compute_Wh_b_relation(W, mu_G, b):
+    Wh = torch.mv(W, mu_G.cuda())
+    res_b = torch.norm(Wh + b, p='fro')
+    return res_b.detach().cpu().numpy().item()
+
+
+def plot_prob_margin_distribution(all_prob_margin):
+    fig = plt.figure(figsize=(12, 8))
+    plt.grid(True)
+
+    plt.plot(all_prob_margin, 'c', linewidth=3, alpha=0.7)
+
+    plt.xlabel('Index', fontsize=40)
+    plt.ylabel('Probability Margin', fontsize=40)
+    plt.title('Distibution of Probability Margin', fontsize=40)
+    plt.xticks(np.arange(0,all_prob_margin.shape[0]+1,all_prob_margin.shape[0]//5), fontsize=30)
+
+    plt.yticks(np.arange(-1, 1.01, 0.5), fontsize=30)
+
+    plt.axis([0, all_prob_margin.shape[0], -1, 1])
+
+    return fig
+
+def plot_cos_margin_distribution(all_cos_margin):
+    fig = plt.figure(figsize=(12, 8))
+    plt.grid(True)
+
+    plt.plot(all_cos_margin, 'c', linewidth=3, alpha=0.7)
+
+    plt.xlabel('Index', fontsize=40)
+    plt.ylabel('Cosine Margin', fontsize=40)
+    plt.title('Distibution of Cosine Margin', fontsize=40)
+    plt.xticks(np.arange(0, all_cos_margin.shape[0]+1, all_cos_margin.shape[0]//5), fontsize=30)
+
+    plt.yticks(np.arange(-1.5, 1.51, 0.5), fontsize=30)
+
+    plt.axis([0, all_cos_margin.shape[0], -1.5, 1.5])
+
+    return fig
+
+
 def main():
     args = parse_eval_args()
 
@@ -304,8 +361,9 @@ def main():
         sys.exit('Need to input the path to a pre-trained model!')
 
     #device = torch.device("cuda:"+str(args.gpu_id) if torch.cuda.is_available() else "cpu")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     args.device = device
+
     
     # Dataset part
     if args.dataset == "cifar10":
@@ -382,6 +440,9 @@ def main():
                  'nuclear_metric': [],
                  'ETF_metric': [],
                  'WH_relation_metric': [],
+                 'Wh_b_relation_metric': [],
+                 'prob_margin': [],
+                 'cos_margin': [],
                  'W': [],
                  'b': [],
                  'mu_G_train': [],
@@ -415,10 +476,13 @@ def main():
             if 'linear.bias' in n:
                 b = p.clone()
 
-        mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(args, model, fc_features, trainloader, isTrain=True)
-        mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(args, model, fc_features, testloader, isTrain=False)
+        if not args.bias:
+            b = torch.zeros((W.shape[0],), device=device)
 
-        Sigma_W = compute_Sigma_W(args, model, fc_features, mu_c_dict_train, trainloader, isTrain=True)
+        mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(args, model, fc_features, trainloader)
+        mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(args, model, fc_features, testloader)
+
+        Sigma_W = compute_Sigma_W(args, before_class_dict_train, mu_c_dict_train, batchsize=args.batch_size)
         # Sigma_W_test_norm = compute_Sigma_W(args, model, fc_features, mu_c_dict_train, testloader, isTrain=False)
         Sigma_B = compute_Sigma_B(mu_c_dict_train, mu_G_train)
 
@@ -429,12 +493,19 @@ def main():
         #nuclear_epoch = compute_nuclear_metric(before_class_dict_train)
         nf_metric_epoch = compute_nuclear_frobenius(before_class_dict_train)
         info_dict['nuclear_metric'].append(nf_metric_epoch)
+
+        avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = \
+            compute_margin(args, before_class_dict_train, after_class_dict_train, W, b, mu_G_train, batchsize=args.batch_size)
+        info_dict['prob_margin'].append(avg_prob_margin)
+        info_dict['cos_margin'].append(avg_cos_margin)
     
         WH_relation_metric = compute_W_H_relation(W, mu_c_dict_train, mu_G_train) # Added back
+        Wh_b_relation_metric = compute_Wh_b_relation(W, mu_G_train, b)
 
         info_dict['collapse_metric'].append(collapse_metric)
         info_dict['ETF_metric'].append(ETF_metric)
         info_dict['WH_relation_metric'].append(WH_relation_metric) # Added back
+        info_dict['Wh_b_relation_metric'].append(Wh_b_relation_metric)
         info_dict['mu_G_train'].append(mu_G_train.detach().cpu().numpy())
         info_dict['mu_G_test'].append(mu_G_test.detach().cpu().numpy())
         info_dict['mu_c_dict_train'] = mu_c_dict_train
@@ -451,11 +522,23 @@ def main():
         info_dict['train_acc5'].append(train_acc5)
         info_dict['test_acc1'].append(test_acc1)
         info_dict['test_acc5'].append(test_acc5)
-        
+
+
+        if not os.path.exists(args.load_path + 'probability_margin/'):
+            os.mkdir(args.load_path + 'probability_margin/')
+        prob_margin_dist_fig.savefig(args.load_path + 'probability_margin/' + "p_margin_epochs_%3d.pdf" %i,
+                                     bbox_inches='tight')
+
+
+        if not os.path.exists(args.load_path + 'cosine_margin/'):
+            os.mkdir(args.load_path + 'cosine_margin/')
+        prob_margin_dist_fig.savefig(args.load_path + 'cosine_margin/' + "c_margin_epochs_%3d.pdf" %i,
+                                     bbox_inches='tight')
         print(f"Epoch {i} is processed")
         
     with open(args.load_path + args.p_name, 'wb') as f: #'info_normal.pkl'
         pickle.dump(info_dict, f)
+
 
 
 if __name__ == "__main__":
