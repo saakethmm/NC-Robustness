@@ -111,7 +111,7 @@ class ConfigParser:
         for setting in needed_types:
             types = self.config[setting]["type"]
             
-            args =  self.config[setting]["args"]
+            args = self.config[setting]["args"]
             arg_tag = '{}-'.format(str(types))
             if setting in needed_args:
                 for key, val in args.items():
@@ -123,7 +123,7 @@ class ConfigParser:
             final_exp_name += '-Sym-{}'.format(self.config['trainer']['percent'])
         if self.config['trainer']['asym']:
             final_exp_name += '-Asym-{}'.format(self.config['trainer']['percent'])
-        if self.config['trainer']['subset_percent']<0.9:
+        if self.config['trainer']['subset_percent'] < 0.9:
             final_exp_name += '-Subset-{:.0f}%'.format(self.config['trainer']['subset_percent']*100)
         final_exp_name += '-Seed={:d}'.format(self.config['seed'])
         return final_exp_name

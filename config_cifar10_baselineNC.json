@@ -1,10 +1,10 @@
 {
-    "name": "Experiment",
+    "name": "Benchmark",
     "n_gpu": 1,
     "seed": 12,
 
     "comet": {
-        "api": "1TdBFrcmHJYRNzVCHNwIKS1p3",
+        "api": "yA5YyHHNGH2PEnTnqSavP0j6g",
         "offline": false
     },
 
@@ -23,7 +23,7 @@
     "data_loader": {
         "type": "CIFAR10DataLoader",
 	"args":{
-            "data_dir": "/Users/saakethm/Documents/Courses/Winter_2022/EECS_499/Neural_Collapse/NC_good_or_bad",
+            "data_dir": "/home/saakethm/data",
             "batch_size": 128,
             "shuffle": true,
             "num_batches": 0,

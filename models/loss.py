@@ -1,12 +1,9 @@
 import torch.nn.functional as F
 import torch
-import numpy as np
 from parse_config import ConfigParser
 import torch.nn as nn
-from torch.autograd import Variable
-import math
-from typing import Type, Any, Callable, Union, List, Optional
-from utils import sigmoid_rampup, sigmoid_rampdown, cosine_rampup, cosine_rampdown, linear_rampup
+from typing import Any, Optional
+from utils import sigmoid_rampup
 
 cross_entropy = nn.CrossEntropyLoss
 

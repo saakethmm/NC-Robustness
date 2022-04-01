@@ -1,0 +1,11 @@
+.idea/
+__pycache__/
+base/__pycache__/
+cifar-10-batches-py/
+cifar-10-python.tar.gz
+data_loader/__pycache__/
+logger/__pycache__/
+models/__pycache__/
+saved/
+trainer/__pycache__/
+utils/__pycache__/	

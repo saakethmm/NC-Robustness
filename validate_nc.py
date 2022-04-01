@@ -5,7 +5,6 @@ import torchvision.transforms as transforms
 import torch
 import scipy.linalg as scilin
 
-import models
 from models.resnet import ResNet18
 import argparse
 import os
@@ -13,7 +12,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torchvision.datasets import CIFAR10, MNIST
 from data_loader.mini_imagenet import MiniImagenet
-from utils import load_from_state_dict
 
 
 class CIFAR10_subs(CIFAR10):

@@ -1,9 +1,5 @@
-import comet_ml
 import argparse
 import collections
-import sys
-import requests
-import socket
 import torch
 import data_loader.data_loaders as module_data
 import models.loss as module_loss
@@ -12,11 +8,7 @@ import models.model as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from collections import OrderedDict
-import random
 from utils import set_seed
-import torchvision.transforms as transforms
-import torchvision
-import torch.nn as nn
 
 
 def log_params(conf: OrderedDict, parent_key: str = None):
@@ -123,5 +115,5 @@ if __name__ == '__main__':
     ]
     config = ConfigParser.get_instance(args, options)
 
-    set_seed(manualSeed = config['seed'])
+    set_seed(manualSeed=config['seed'])
     main(config)

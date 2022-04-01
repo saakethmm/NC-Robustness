@@ -1,17 +1,9 @@
 import torch
-import sys
 from torch.autograd import Variable
-import numpy as np
-import time
 import torch.nn as nn
-from tqdm import tqdm
 import models.model as module_arch
-#from tqdm import tqdm_notebook as tqdm
-from typing import List
 import sys
-from base import BaseTrainer
-from utils import inf_loop, get_logger, Timer, load_from_state_dict, set_seed
-from collections import OrderedDict
+from utils import load_from_state_dict, set_seed
 import argparse
 from parse_config import ConfigParser
 import data_loader.data_loaders as module_data

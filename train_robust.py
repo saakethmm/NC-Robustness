@@ -1,22 +1,15 @@
 import comet_ml
 import argparse
 import collections
-import sys
-import requests
-import socket
 import torch
 import data_loader.data_loaders as module_data
 import models.loss as module_loss
 import models.metric as module_metric
 import models.model as module_arch
 from parse_config import ConfigParser
-from trainer import Trainer, Adv_Trainer
+from trainer import Adv_Trainer
 from collections import OrderedDict
-import random
 from utils import set_seed
-import torchvision.transforms as transforms
-import torchvision
-import torch.nn as nn
 from validate_pgd import validate_pgd
 
 

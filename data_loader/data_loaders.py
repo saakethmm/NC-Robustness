@@ -1,12 +1,9 @@
-import sys
-
-from torchvision import datasets, transforms
+from torchvision import transforms
 from base import BaseDataLoader
 from data_loader.cifar10 import get_cifar10
 from data_loader.cifar100 import get_cifar100
 from data_loader.mini_imagenet import get_miniimagenet
 from parse_config import ConfigParser
-from PIL import Image
 
 
 class CIFAR10DataLoader(BaseDataLoader):

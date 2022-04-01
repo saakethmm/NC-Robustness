@@ -1,10 +1,10 @@
 {
-    "name": "Experiment",
+    "name": "Adversarial",
     "n_gpu": 1,
-    "seed": 12,
+    "seed": 8,
 
     "comet": {
-        "api": "1TdBFrcmHJYRNzVCHNwIKS1p3",
+        "api": "yA5YyHHNGH2PEnTnqSavP0j6g",
         "offline": false
     },
 
@@ -23,12 +23,12 @@
     "data_loader": {
         "type": "CIFAR10DataLoader",
 	"args":{
-            "data_dir": "/Users/saakethm/Documents/Courses/Winter_2022/EECS_499/Neural_Collapse/NC_good_or_bad",
+            "data_dir": "/home/saakethm/data",
             "batch_size": 128,
             "shuffle": true,
             "num_batches": 0,
             "validation_split": 0,
-            "num_workers": 0,
+            "num_workers": 4,
             "pin_memory": true
         }
     },
@@ -36,29 +36,15 @@
     "optimizer": {
         "type": "SGD",
         "args":{
-            "lr": 0.01,
+            "lr": 0.1,
             "momentum": 0.9,
-            "weight_decay": 1e-3
+            "weight_decay": 1e-4
         }
     },
 
 
-    "train_loss": {
-        "type": "focalLoss",
-        "args": {
-            "alpha": 1.0,
-            "gamma": 2.0,
-            "num_class": 10
-        }
-    },
-    "val_loss": {
-        "type": "focalLoss",
-        "args": {
-            "alpha": 1.0,
-            "gamma": 20.0,
-            "num_class": 10
-        }
-    },
+    "train_loss": "cross_entropy",
+    "val_loss": "cross_entropy",
     "metrics": [
         "my_metric", "my_metric2"
     ],
@@ -72,7 +58,7 @@
     },
 
     "trainer": {
-        "epochs": 200,
+        "epochs": 100,
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
@@ -87,7 +73,17 @@
         "asym": false,
         "_sym": "Symmetric noise if true",
         "sym": false,
-	"do_adv": false
+	"OCNN": false,
+	"lamb_ocnn": 0.001,
+	"do_adv": true,
+	"fgsm_step": 8,
+	"adv_clip_eps": 8,
+	"adv_repeats": 4
+    },
+
+    "pgd_attack": {
+	"K": 10,
+	"step": 2
     }
 }
                

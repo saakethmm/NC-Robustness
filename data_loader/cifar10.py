@@ -1,16 +1,7 @@
-import sys
 
 import numpy as np
 from PIL import Image
 import torchvision
-from torch.utils.data.dataset import Subset
-from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances 
-import torch
-import torch.nn.functional as F
-import random 
-import json
-import os
-import pickle
 
 def get_cifar10(root, cfg_trainer, train=True,
                 transform_train=None, transform_val=None,

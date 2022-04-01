@@ -1,14 +1,9 @@
 import numpy as np
 import torch
-import torch.nn as nn
 from tqdm import tqdm
-#from tqdm import tqdm_notebook as tqdm
 from typing import List
-import sys
 from base import BaseTrainer
-from utils import inf_loop, get_logger, Timer, deconv_orth_dist, orth_dist
-from collections import OrderedDict
-import argparse
+from utils import inf_loop, deconv_orth_dist, orth_dist
 
 
 class Adv_Trainer(BaseTrainer):
