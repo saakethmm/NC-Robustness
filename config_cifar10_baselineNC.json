@@ -43,12 +43,8 @@
     },
 
 
-    "train_loss": {
-        "type": "cross_entropy"
-    },
-    "val_loss": {
-        "type": "cross_entropy"
-    },
+    "train_loss": "cross_entropy",
+    "val_loss": "cross_entropy",
     "metrics": [
         "my_metric", "my_metric2"
     ],
