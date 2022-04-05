@@ -1,5 +1,5 @@
 {
-    "name": "Benchmark",
+    "name": "No_Adv_Benchmark",
     "n_gpu": 1,
     "seed": 12,
 
@@ -44,20 +44,10 @@
 
 
     "train_loss": {
-        "type": "focalLoss",
-        "args": {
-            "alpha": 1.0,
-            "gamma": 2.0,
-            "num_class": 10
-        }
+        "type": "cross_entropy"
     },
     "val_loss": {
-        "type": "focalLoss",
-        "args": {
-            "alpha": 1.0,
-            "gamma": 20.0,
-            "num_class": 10
-        }
+        "type": "cross_entropy"
     },
     "metrics": [
         "my_metric", "my_metric2"
@@ -72,7 +62,7 @@
     },
 
     "trainer": {
-        "epochs": 200,
+        "epochs": 100,
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
