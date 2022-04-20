@@ -3,6 +3,7 @@ import pickle
 import torchvision
 import torchvision.transforms as transforms
 import torch
+import torch.nn.functional as F
 import scipy.linalg as scilin
 
 import models
@@ -90,6 +91,7 @@ def parse_eval_args():
     parser.add_argument('--ETF_fc', dest='ETF_fc', action='store_true')
     parser.add_argument('--fixdim', dest='fixdim', type=int, default=0)
     parser.add_argument('--SOTA', dest='SOTA', action='store_true')
+    parser.add_argument('--do_adv', dest='do_adv', action='store_true')
     
     # MLP settings (only when using mlp and res_adapt(in which case only width has effect))
     parser.add_argument('--width', type=int, default=1024)
@@ -139,7 +141,7 @@ def split_array(input_array, batchsize=128):
     return output_array_list
 
 
-def compute_info(args, model, fc_features, dataloader):
+def compute_info(args, model, fc_features, dataloader, do_adv = False):
     num_data = 0
     mu_G = 0
     mu_c_dict = dict()
@@ -148,15 +150,25 @@ def compute_info(args, model, fc_features, dataloader):
     after_class_dict = dict()
     top1 = AverageMeter()
     top5 = AverageMeter()
+    # Mean and Std transformation for doing adv training
+    dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
+    dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)
+    
     for batch_idx, (inputs, targets) in enumerate(dataloader):
 
         inputs, targets = inputs.to(args.device), targets.to(args.device)
+        
+        if do_adv: # Need to do normalization if do_adv because this is not included in the dataloader
+            inputs.sub_(dmean[None,:,None,None]).div_(dstd[None,:,None,None])
 
         with torch.no_grad():
             outputs = model(inputs)
             #fea, outputs = model(inputs)
 
         features = fc_features.outputs[0][0]
+        # Need to normalize feature
+        features = F.normalize(features, dim=1)
+        # Need to normalize feature
         fc_features.clear()
 
         mu_G += torch.sum(features, dim=0)
@@ -479,8 +491,8 @@ def main():
         if not args.bias:
             b = torch.zeros((W.shape[0],), device=device)
 
-        mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(args, model, fc_features, trainloader)
-        mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(args, model, fc_features, testloader)
+        mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(args, model, fc_features, trainloader, do_adv=args.do_adv)
+        mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(args, model, fc_features, testloader, do_adv=args.do_adv)
 
         Sigma_W = compute_Sigma_W(args, before_class_dict_train, mu_c_dict_train, batchsize=args.batch_size)
         # Sigma_W_test_norm = compute_Sigma_W(args, model, fc_features, mu_c_dict_train, testloader, isTrain=False)
