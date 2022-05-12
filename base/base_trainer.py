@@ -23,7 +23,7 @@ class BaseTrainer:
             offline = config['comet']['offline'])
 
         self.writer.log_hyperparams(config.config)
-        self.writer.log_code()
+        #self.writer.log_code()
 
         # setup GPU device if available, move model into configured device
         self.device, device_ids = self._prepare_device(config['n_gpu'])
@@ -40,6 +40,7 @@ class BaseTrainer:
         self.optimizer = optimizer
 
         cfg_trainer = config['trainer']
+        self.do_adv = cfg_trainer["do_adv"]
         self.epochs = cfg_trainer['epochs']
         self.save_period = cfg_trainer['save_period']
         self.monitor = cfg_trainer.get('monitor', 'off')
@@ -218,7 +219,8 @@ class BaseTrainer:
     def _validate_nc(self, epoch):
         collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric, Wh_b_relation_metric, \
         avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = validate_nc_epoch(
-            self.checkpoint_dir, epoch, self.model, self.data_loader, self.test_data_loader, self.info_dict
+            self.checkpoint_dir, epoch, self.model, self.data_loader, self.test_data_loader, self.info_dict,
+            do_adv = self.do_adv
         )
         
         self.writer.add_scalar({'NC_1': collapse_metric}, epoch=epoch)

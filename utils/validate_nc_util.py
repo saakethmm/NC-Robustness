@@ -3,6 +3,7 @@ import pickle
 import torchvision
 import torchvision.transforms as transforms
 import torch
+import torch.nn.functional as F
 import scipy.linalg as scilin
 
 import copy
@@ -74,7 +75,7 @@ def compute_accuracy(output, target, topk=(1,)):
     return res
 
 
-def compute_info(device, model, fc_features, dataloader):
+def compute_info(device, model, fc_features, dataloader, do_adv=False):
 
     num_data = 0
     mu_G = 0
@@ -84,14 +85,24 @@ def compute_info(device, model, fc_features, dataloader):
     after_class_dict = dict()
     top1 = AverageMeter()
     top5 = AverageMeter()
+    # Mean and Std transformation for doing adv training
+    dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
+    dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)
+        
     for batch_idx, (inputs, targets) in enumerate(dataloader):
 
         inputs, targets = inputs.to(device), targets.to(device)
+        
+        if do_adv: # Need to do normalization if do_adv because this is not included in the dataloader
+            inputs.sub_(dmean[None,:,None,None]).div_(dstd[None,:,None,None])
 
         with torch.no_grad():
             outputs = model(inputs)
 
         features = fc_features.outputs[0][0]
+        # Need to normalize feature
+        features = F.normalize(features, dim=1)
+        # Need to normalize feature
         fc_features.clear()
 
         mu_G += torch.sum(features, dim=0)
@@ -245,7 +256,7 @@ def compute_W_H_relation(W, mu_c_dict, mu_G):
     return res.detach().cpu().numpy()
 
 
-def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader, info_dict):
+def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader, info_dict, do_adv = False):
     print(f"Processing the NC information for epoch {epoch}")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = copy.deepcopy(orig_model)
@@ -268,8 +279,8 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
     if not have_bias:
         b = torch.zeros((W.shape[0],), device=device)
 
-    mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(device, model, fc_features, trainloader)
-    mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(device, model, fc_features, testloader)
+    mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(device, model, fc_features, trainloader, do_adv = do_adv)
+    mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(device, model, fc_features, testloader, do_adv = do_adv)
     
     Sigma_W = compute_Sigma_W(device, before_class_dict_train, mu_c_dict_train, batchsize=batchsize)
     
