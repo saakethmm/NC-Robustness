@@ -1,4 +1,4 @@
-import importlib
+import comet_ml
 try:
     from comet_ml import Experiment as CometExperiment
     from comet_ml import OfflineExperiment as CometOfflineExperiment
@@ -7,6 +7,7 @@ except ImportError:  # pragma: no-cover
 else:
     _COMET_AVAILABLE = True
 
+import importlib
 from utils import Timer
 import torch
 from torch import is_tensor

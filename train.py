@@ -1,6 +1,6 @@
 import argparse
 import collections
-import torch
+import comet_ml
 import data_loader.data_loaders as module_data
 import models.loss as module_loss
 import models.metric as module_metric
@@ -9,6 +9,8 @@ from parse_config import ConfigParser
 from trainer import Trainer
 from collections import OrderedDict
 from utils import set_seed
+import torch
+
 
 
 def log_params(conf: OrderedDict, parent_key: str = None):
@@ -53,8 +55,8 @@ def main(config: ConfigParser):
     # build model architecture, then print to console
     model = config.initialize('arch', module_arch)
 
-    train_loss = getattr(module_loss, config['train_loss']) # train_loss = getattr(module_loss, config['train_loss'])
-    val_loss = getattr(module_loss, config['val_loss']) # config.initialize('val_loss', module_loss)
+    train_loss = config.initialize('train_loss', module_loss) # getattr(module_loss, config['train_loss'])
+    val_loss = config.initialize('val_loss', module_loss) # getattr(module_loss, config['val_loss'])
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     logger.info(str(model).split('\n')[-1])
@@ -74,6 +76,8 @@ def main(config: ConfigParser):
 
     lr_scheduler = config.initialize('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
+    # Trainer is specific to this application, where base trainer then takes the
+    # the model, metrics, optimizer, config
     trainer = Trainer(model, train_loss, metrics, optimizer,
                       config=config,
                       data_loader=data_loader,

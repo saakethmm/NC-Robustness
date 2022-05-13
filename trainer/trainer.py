@@ -37,6 +37,7 @@ class Trainer(BaseTrainer):
         self.test_loss_list: List[float] = []
 
         self.train_criterion = train_criterion
+        self.val_criterion = val_criterion
 
         #Visdom visualization
         self.new_best_val = False
@@ -78,7 +79,7 @@ class Trainer(BaseTrainer):
                 
                 output = self.model(data)
 
-                loss = self.train_criterion(output, label)
+                loss = self.train_criterion(output, label) # Is this calculating loss or redefining criterion? (seems to be where the error is...)
                 self.optimizer.zero_grad()
                 loss.backward()
                 

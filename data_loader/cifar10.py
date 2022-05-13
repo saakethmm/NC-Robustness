@@ -167,6 +167,8 @@ class CIFAR10_val(torchvision.datasets.CIFAR10):
             self.train_data = self.data
             self.train_labels = np.array(self.targets)
         self.train_labels_gt = self.train_labels.copy()
+
+    # For a user-provided percent of the training data, shuffle the labels randomly
     def symmetric_noise(self):
         
         indices = np.random.permutation(len(self.train_data))
@@ -174,6 +176,7 @@ class CIFAR10_val(torchvision.datasets.CIFAR10):
             if i < self.cfg_trainer['percent'] * len(self.train_data):
                 self.train_labels[idx] = np.random.randint(self.num_classes, dtype=np.int32)
 
+    # For a user-provided percent of the training data, assign specific wrong labels to certain classes
     def asymmetric_noise(self):
         for i in range(self.num_classes):
             indices = np.where(self.train_labels == i)[0]

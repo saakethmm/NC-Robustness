@@ -5,8 +5,8 @@ import torch.nn as nn
 from typing import Any, Optional
 from utils import sigmoid_rampup
 
-cross_entropy = nn.CrossEntropyLoss
-
+def cross_entropy(output, target):
+    return F.cross_entropy(output, target)
 
 class cross_entropy_iden(nn.Module):
     def forward(self, output, target):

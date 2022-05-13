@@ -5,7 +5,7 @@
 
     "comet": {
         "api": "yA5YyHHNGH2PEnTnqSavP0j6g",
-        "offline": false
+        "offline": true
     },
 
     "arch": {

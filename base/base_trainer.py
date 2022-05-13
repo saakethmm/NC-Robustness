@@ -10,9 +10,10 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, metrics, optimizer, config, val_criterion):
+    def __init__(self, model, metrics, optimizer, config):
         self.config = config
         self.logger = config.get_logger('trainer', config['trainer']['verbosity'])
+
 
         self.writer = CometWriter(
             self.logger,
@@ -23,9 +24,10 @@ class BaseTrainer:
             offline = config['comet']['offline'])
 
         self.writer.log_hyperparams(config.config)
-        #self.writer.log_code()
 
-        # setup GPU device if available, move model into configured device
+        # self.writer.log_code()
+
+        # setup GPU device if available,  move model into configured device
         self.device, device_ids = self._prepare_device(config['n_gpu'])
         self.model = model.to(self.device)
         
@@ -34,7 +36,6 @@ class BaseTrainer:
         if len(device_ids) > 1:
             self.model = torch.nn.DataParallel(model, device_ids=device_ids)
         
-        self.val_criterion = val_criterion
         self.metrics = metrics
 
         self.optimizer = optimizer

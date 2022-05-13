@@ -85,7 +85,8 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
     after_class_dict = dict()
     top1 = AverageMeter()
     top5 = AverageMeter()
-    # Mean and Std transformation for doing adv training
+
+    # Mean and Std transformation for doing adv training (LATEST ADDITION)
     dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
     dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)
         
@@ -100,25 +101,30 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
             outputs = model(inputs)
 
         features = fc_features.outputs[0][0]
-        # Need to normalize feature
+        # Need to normalize features along hidden layer dimension
         features = F.normalize(features, dim=1)
-        # Need to normalize feature
+        # Clear fc_features for next epoch
         fc_features.clear()
 
         mu_G += torch.sum(features, dim=0)
 
+        # For each training example
         for b in range(len(targets)):
             y = targets[b].item()
+            # If dictionary does not have the class yet, initialize
             if y not in mu_c_dict:
                 mu_c_dict[y] = features[b, :]
+                # Last hidden layer features
                 before_class_dict[y] = [features[b, :].detach().cpu().numpy()]
+                # Output layer features
                 after_class_dict[y] = [outputs[b, :].detach().cpu().numpy()]
+                # Number of examples for that class
                 num_class_dict[y] = 1
             else:
                 mu_c_dict[y] += features[b, :]
                 before_class_dict[y].append(features[b, :].detach().cpu().numpy())
                 after_class_dict[y].append(outputs[b, :].detach().cpu().numpy())
-                num_class_dict[y] = num_class_dict[y] + 1
+                num_class_dict[y] += 1
 
         num_data += targets.shape[0]
 
@@ -126,7 +132,9 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
         top1.update(prec1.item(), inputs.size(0))
         top5.update(prec5.item(), inputs.size(0))
 
+    # Average to find the global mean
     mu_G /= num_data
+    # Average by the number of examples in each class to find the class mean
     for i in range(len(mu_c_dict.keys())):
         mu_c_dict[i] /= num_class_dict[i]
 
@@ -146,16 +154,19 @@ def compute_Sigma_W(device, before_class_dict, mu_c_dict, batchsize=128):
             Sigma_W += torch.sum(Sigma_W_batch, dim=0)
             num_data += features.shape[0]
 
+    # Average over all the data, equivalent to averaging over all examples in each class
     Sigma_W /= num_data
     return Sigma_W.detach().cpu().numpy()
 
 
 def compute_Sigma_B(mu_c_dict, mu_G):
     Sigma_B = 0
+    # Number of classes
     K = len(mu_c_dict)
     for i in range(K):
         Sigma_B += (mu_c_dict[i] - mu_G).unsqueeze(1) @ (mu_c_dict[i] - mu_G).unsqueeze(0)
 
+    # Averaging over all classes
     Sigma_B /= K
 
     return Sigma_B.detach().cpu().numpy()
@@ -166,10 +177,35 @@ def compute_ETF(W):
     WWT = torch.mm(W, W.T)
     WWT /= torch.norm(WWT, p='fro')
 
+    # TODO: Ask where the normalizing constant K went in numerator?
     sub = (torch.eye(K) - 1 / K * torch.ones((K, K))).cuda() / pow(K - 1, 0.5)
     ETF_metric = torch.norm(WWT - sub, p='fro')
     return ETF_metric.detach().cpu().numpy().item()
 
+
+def compute_ETF_feature(mu_c_dict, mu_G):
+    """
+    args:
+    @ mu_c_dict: dictionary of class feature mean
+    @ mu_G: Global mean of features
+    Both of the above parameter could be obtained from the compute_info function
+    """
+    device = mu_G.device
+    classes = list(mu_c_dict.keys())
+    K = len(classes)
+    fea_len = mu_c_dict[classes[0]].shape[0]
+
+    H_bar = torch.zeros(K, fea_len).to(device)
+    for i, k in enumerate(mu_c_dict):
+        H_bar[i] = mu_c_dict[k] - mu_G  # Subtract global mean from class mean
+
+    HHT = torch.mm(H_bar, H_bar.T)
+    HHT /= torch.norm(HHT, p='fro')
+
+    sub = (torch.eye(K) - 1 / K * torch.ones((K, K))).to(device) / pow(K - 1, 0.5)
+
+    ETF_metric_tilde = torch.norm(HHT - sub, p='fro')
+    return ETF_metric_tilde.detach().cpu().numpy().item()
 
 def compute_Wh_b_relation(W, mu_G, b):
     Wh = torch.mv(W, mu_G.cuda())
@@ -279,6 +315,7 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
     if not have_bias:
         b = torch.zeros((W.shape[0],), device=device)
 
+    # Last-layer features global mean, Last-layer features class means,
     mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(device, model, fc_features, trainloader, do_adv = do_adv)
     mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(device, model, fc_features, testloader, do_adv = do_adv)
     
@@ -286,15 +323,19 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
     
     Sigma_B = compute_Sigma_B(mu_c_dict_train, mu_G_train)
 
+    # Computing metric for within-class variability collapse (NC1)
     collapse_metric = np.trace(Sigma_W @ scilin.pinv(Sigma_B)) / len(mu_c_dict_train)
+
+
     ETF_metric = compute_ETF(W)
+    ETF_feature_metric = compute_ETF_feature(mu_c_dict_train, mu_G_train)
     # Add for nuclear metric
     #nuclear_epoch = compute_nuclear_metric(before_class_dict_train)
     nf_metric_epoch = compute_nuclear_frobenius(before_class_dict_train)
     info_dict['nuclear_metric'].append(nf_metric_epoch)
 
     # Add for prob margin and cos margin
-    avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = \
+    avg_prob_margin, avg_cos_margin, prob_magin_dist_fig, cos_margin_dist_fig = \
         compute_margin(device, before_class_dict_train, after_class_dict_train, W, b, mu_G_train, batchsize=batchsize)
     info_dict['prob_margin'].append(avg_prob_margin)
     info_dict['cos_margin'].append(avg_cos_margin)
