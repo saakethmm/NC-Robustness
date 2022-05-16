@@ -17,7 +17,7 @@ class BaseTrainer:
 
         self.writer = CometWriter(
             self.logger,
-            project_name = "preconditioning",
+            project_name = "robust_NC",
             experiment_name = config['exper_name'],
             api_key = config['comet']['api'],
             log_dir = config.log_dir,
@@ -113,7 +113,7 @@ class BaseTrainer:
         for epoch in tqdm(range(self.start_epoch, self.epochs + 1), desc='Total progress: '):
             result = self._train_epoch(epoch)
             print("one done")
-            # save logged informations into log dict
+            # save logged information into log dict
             log = {'epoch': epoch}
             for key, value in result.items():
                 if key == 'metrics':
@@ -218,24 +218,31 @@ class BaseTrainer:
         self.logger.info("Saving current model: current model save at: {} ...".format(path))
     
     def _validate_nc(self, epoch):
-        collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric, Wh_b_relation_metric, \
-        avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = validate_nc_epoch(
+        collapse_metric, nf_metric_epoch, ETF_metric, ETF_feature_metric, WH_relation_metric, Wh_b_relation_metric, \
+        avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig, \
+        collapse_metric_test, ETF_feature_metric_test, WH_relation_metric_test, Wh_b_relation_metric_test = \
+            validate_nc_epoch(
             self.checkpoint_dir, epoch, self.model, self.data_loader, self.test_data_loader, self.info_dict,
             do_adv = self.do_adv
         )
-        
-        self.writer.add_scalar({'NC_1': collapse_metric}, epoch=epoch)
-        self.writer.add_scalar({'NF_metric': nf_metric_epoch}, epoch=epoch)
-        self.writer.add_scalar({'NC_2': ETF_metric}, epoch=epoch)
-        self.writer.add_scalar({'NC_3': WH_relation_metric}, epoch=epoch)
-        self.writer.add_scalar({'NC_4': Wh_b_relation_metric}, epoch=epoch)
-        self.writer.add_scalar({'prob_margin': avg_prob_margin}, epoch=epoch)
-        self.writer.add_scalar({'cos_margin': avg_cos_margin}, epoch=epoch)
-        self.writer.add_plot('prob_margin_distribution', prob_margin_dist_fig, epoch=epoch)
-        self.writer.add_plot('cos_margin_distribution', cos_margin_dist_fig, epoch=epoch)
 
+        mode_validate = 'train'
+        self.writer.add_scalar({'NC_1': collapse_metric}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'NF_metric': nf_metric_epoch}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'NC_2 (Classifier)': ETF_metric}, epoch=epoch, mode=mode_validate) # Really for both train & test
+        self.writer.add_scalar({'NC_2 (Features)': ETF_feature_metric}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'NC_3': WH_relation_metric}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'NC_4': Wh_b_relation_metric}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'prob_margin': avg_prob_margin}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'cos_margin': avg_cos_margin}, epoch=epoch, mode=mode_validate)
+        self.writer.add_plot('prob_margin_distribution', prob_margin_dist_fig, epoch=epoch, mode=mode_validate)
+        self.writer.add_plot('cos_margin_distribution', cos_margin_dist_fig, epoch=epoch, mode=mode_validate)
 
-
+        mode_validate = 'test'
+        self.writer.add_scalar({'NC_1': collapse_metric_test}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'NC_2 (Features)': ETF_feature_metric_test}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'NC_3': WH_relation_metric_test}, epoch=epoch, mode=mode_validate)
+        self.writer.add_scalar({'NC_4': Wh_b_relation_metric_test}, epoch=epoch, mode=mode_validate)
 
 
     def _resume_checkpoint(self, resume_path):

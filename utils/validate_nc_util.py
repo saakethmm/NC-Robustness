@@ -140,7 +140,7 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
 
     return mu_G, mu_c_dict, before_class_dict, after_class_dict, top1.avg, top5.avg
 
-
+# Within-class covariance matrix
 def compute_Sigma_W(device, before_class_dict, mu_c_dict, batchsize=128):
     
     num_data = 0
@@ -158,7 +158,7 @@ def compute_Sigma_W(device, before_class_dict, mu_c_dict, batchsize=128):
     Sigma_W /= num_data
     return Sigma_W.detach().cpu().numpy()
 
-
+# Between-class covariance matrix
 def compute_Sigma_B(mu_c_dict, mu_G):
     Sigma_B = 0
     # Number of classes
@@ -171,18 +171,18 @@ def compute_Sigma_B(mu_c_dict, mu_G):
 
     return Sigma_B.detach().cpu().numpy()
 
-
+# NC2: Difference between W covariance matrix (classifier) and ETF representation
 def compute_ETF(W):
     K = W.shape[0]
     WWT = torch.mm(W, W.T)
     WWT /= torch.norm(WWT, p='fro')
 
-    # TODO: Ask where the normalizing constant K went in numerator?
+    # Only use 1 / sqrt(K-1) for second term so both have Frobenius norm 1
     sub = (torch.eye(K) - 1 / K * torch.ones((K, K))).cuda() / pow(K - 1, 0.5)
     ETF_metric = torch.norm(WWT - sub, p='fro')
     return ETF_metric.detach().cpu().numpy().item()
 
-
+# NC2: Same as above but instead with the last-layer features themselves
 def compute_ETF_feature(mu_c_dict, mu_G):
     """
     args:
@@ -207,6 +207,7 @@ def compute_ETF_feature(mu_c_dict, mu_G):
     ETF_metric_tilde = torch.norm(HHT - sub, p='fro')
     return ETF_metric_tilde.detach().cpu().numpy().item()
 
+# NC4: Checking to see if b is compensating for ReLU misaligned features (mu_G)
 def compute_Wh_b_relation(W, mu_G, b):
     Wh = torch.mv(W, mu_G.cuda())
     res_b = torch.norm(Wh + b, p='fro')
@@ -277,10 +278,11 @@ def compute_margin(device, before_class_dict, after_class_dict, W, b, mu_G, batc
     cos_margin_dist_fig = plot_cos_margin_distribution(all_cos_margin)
     return avg_prob_margin.item(), avg_cos_margin.item(), prob_margin_dist_fig, cos_margin_dist_fig
 
-
+# NC3:
 def compute_W_H_relation(W, mu_c_dict, mu_G):
     K = len(mu_c_dict)
     M = torch.empty(mu_c_dict[0].shape[0], K)
+    # M is the same, finding the difference between class mean and global mean
     for i in range(K):
         M[:, i] = mu_c_dict[i] - mu_G
     sub = 1 / np.sqrt(K-1) * (torch.eye(K) - torch.ones(K, K) / K)
@@ -315,33 +317,46 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
     if not have_bias:
         b = torch.zeros((W.shape[0],), device=device)
 
-    # Last-layer features global mean, Last-layer features class means,
+    # Last-layer features global mean, Last-layer features class means, last layer features, output layer, top1 acc, top5 acc
     mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(device, model, fc_features, trainloader, do_adv = do_adv)
     mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(device, model, fc_features, testloader, do_adv = do_adv)
-    
+
+
+    # All metrics on training data, NOT testing data
     Sigma_W = compute_Sigma_W(device, before_class_dict_train, mu_c_dict_train, batchsize=batchsize)
-    
     Sigma_B = compute_Sigma_B(mu_c_dict_train, mu_G_train)
+
+    Sigma_W_test = compute_Sigma_W(device, before_class_dict_test, mu_c_dict_test, batchsize=batchsize)
+    Sigma_B_test = compute_Sigma_B(mu_c_dict_test, mu_G_test)
 
     # Computing metric for within-class variability collapse (NC1)
     collapse_metric = np.trace(Sigma_W @ scilin.pinv(Sigma_B)) / len(mu_c_dict_train)
+    collapse_metric_test = np.trace(Sigma_W_test @ scilin.pinv(Sigma_B_test)) / len(mu_c_dict_test)
 
-
+    # Not same as Papyan paper (they tested equi-norm and maximal angle separation of
+    # class-means and global mean), instead here we test closeness to Simplex ETF directly (NC2)
     ETF_metric = compute_ETF(W)
     ETF_feature_metric = compute_ETF_feature(mu_c_dict_train, mu_G_train)
+    ETF_feature_metric_test = compute_ETF_feature(mu_c_dict_test, mu_G_test)
+
     # Add for nuclear metric
     #nuclear_epoch = compute_nuclear_metric(before_class_dict_train)
     nf_metric_epoch = compute_nuclear_frobenius(before_class_dict_train)
     info_dict['nuclear_metric'].append(nf_metric_epoch)
 
     # Add for prob margin and cos margin
-    avg_prob_margin, avg_cos_margin, prob_magin_dist_fig, cos_margin_dist_fig = \
+    avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = \
         compute_margin(device, before_class_dict_train, after_class_dict_train, W, b, mu_G_train, batchsize=batchsize)
     info_dict['prob_margin'].append(avg_prob_margin)
     info_dict['cos_margin'].append(avg_cos_margin)
-    
+
+    # NC3 metric
     WH_relation_metric = compute_W_H_relation(W, mu_c_dict_train, mu_G_train) # Added back
+    WH_relation_metric_test = compute_W_H_relation(W, mu_c_dict_test, mu_G_test)
+
+    # NC4 metric (different from Papyan paper!), measuring bias collapse to account for positive mu_G (due to ReLU)
     Wh_b_relation_metric = compute_Wh_b_relation(W, mu_G_train, b)
+    Wh_b_relation_metric_test = compute_Wh_b_relation(W, mu_G_test, b)
 
     info_dict['collapse_metric'].append(collapse_metric)
     info_dict['ETF_metric'].append(ETF_metric)
@@ -370,8 +385,9 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
 
     print(f"Epoch {epoch} is processed")
     
-    return collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric, Wh_b_relation_metric,\
-           avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig
+    return collapse_metric, nf_metric_epoch, ETF_metric, ETF_feature_metric, WH_relation_metric, Wh_b_relation_metric,\
+           avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig, \
+           collapse_metric_test, ETF_feature_metric_test, WH_relation_metric_test, Wh_b_relation_metric_test
         
 
 def plot_nc(info_dict, epochs):

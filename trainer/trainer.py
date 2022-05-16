@@ -79,7 +79,7 @@ class Trainer(BaseTrainer):
                 
                 output = self.model(data)
 
-                loss = self.train_criterion(output, label) # Is this calculating loss or redefining criterion? (seems to be where the error is...)
+                loss = self.train_criterion(output, label)
                 self.optimizer.zero_grad()
                 loss.backward()
                 
