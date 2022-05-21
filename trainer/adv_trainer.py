@@ -14,7 +14,7 @@ class Adv_Trainer(BaseTrainer):
     """
     def __init__(self, model, train_criterion, metrics, optimizer, config, data_loader,
                  valid_data_loader=None, test_data_loader=None, lr_scheduler=None, len_epoch=None, val_criterion=None):
-        super().__init__(model, metrics, optimizer, config, val_criterion)
+        super().__init__(model, metrics, optimizer, config)
         self.config = config
         self.data_loader = data_loader
         if len_epoch is None:
@@ -36,6 +36,7 @@ class Adv_Trainer(BaseTrainer):
         self.test_loss_list: List[float] = []
 
         self.train_criterion = train_criterion
+        self.val_criterion = val_criterion
 
         #Visdom visualization
         self.new_best_val = False
@@ -97,11 +98,15 @@ class Adv_Trainer(BaseTrainer):
                 
                 # Adv training steps
                 global_noise_data = torch.zeros([data.shape[0], 3, 32, 32]).to(self.device)
+                # TODO: Why does adv training take much less time compared to regular when we're still calculating
+                #  gradients and updating the model at each for each repetition over all epochs? (b/c we're using same data...)
                 for j in range(self.adv_repeats):
                     # Ascend on the global noise
                     noise_batch = global_noise_data.clone().requires_grad_(True).to(self.device)
                     in1 = data + noise_batch
                     in1.clamp_(0, 1.0)
+
+                    # TODO: Wouldn't the mean and standard deviation of the input change as we add noise to it?
                     in1.sub_(self.dmean[None,:,None,None]).div_(self.dstd[None,:,None,None])
                     output = self.model(in1)
                     #feature, output = self.model(in1)
@@ -139,7 +144,9 @@ class Adv_Trainer(BaseTrainer):
                     # Update the noise for the next iteration
                     pert = self.fgsm(noise_batch.grad, self.fgsm_step)
                     global_noise_data[0:data.shape[0]] += pert.data
+                    # adv_clip_eps clamps the noise for the next iteration within a lower/upper bound
                     global_noise_data.clamp_(-self.adv_clip_eps, self.adv_clip_eps)
+
 
                     self.optimizer.step()
                     

@@ -12,7 +12,7 @@ class CIFAR10DataLoader(BaseDataLoader):
         cfg_trainer = config['trainer']
         
         if cfg_trainer["do_adv"]:
-            print("Doint adv. attack")
+            print("Doing adv. attack")
             transform_train = transforms.Compose([
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),

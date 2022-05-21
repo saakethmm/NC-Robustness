@@ -15,7 +15,7 @@ class Trainer(BaseTrainer):
     """
     def __init__(self, model, train_criterion, metrics, optimizer, config, data_loader,
                  valid_data_loader=None, test_data_loader=None, lr_scheduler=None, len_epoch=None, val_criterion=None):
-        super().__init__(model, metrics, optimizer, config, val_criterion)
+        super().__init__(model, metrics, optimizer, config)
         self.config = config
         self.data_loader = data_loader
         if len_epoch is None:
@@ -89,7 +89,7 @@ class Trainer(BaseTrainer):
                     p.data.clamp_(min=0, max=1)
 
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx, epoch=epoch)
-                self.writer.add_scalar({'loss': loss.item()})
+                self.writer.add_scalar({'loss': loss.item()}) # Every add_scalar adds a point to the Comet ML chart
                 self.train_loss_list.append(loss.item())
                 total_loss += loss.item()
                 total_metrics += self._eval_metrics(output, label)

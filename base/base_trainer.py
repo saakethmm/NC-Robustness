@@ -17,7 +17,7 @@ class BaseTrainer:
 
         self.writer = CometWriter(
             self.logger,
-            project_name = "robust_NC",
+            project_name = "NC_Project",
             experiment_name = config['exper_name'],
             api_key = config['comet']['api'],
             log_dir = config.log_dir,
@@ -130,6 +130,7 @@ class BaseTrainer:
                 self.logger.info('    {:15s}: {}'.format(str(key), value))
 
             # evaluate model performance according to configured metric, save best checkpoint as model_best
+            # Based off trend in metric, we can early stop the model during training if it never improves
             best = False
             if self.mnt_mode != 'off':
                 try:
@@ -235,8 +236,8 @@ class BaseTrainer:
         self.writer.add_scalar({'NC_4': Wh_b_relation_metric}, epoch=epoch, mode=mode_validate)
         self.writer.add_scalar({'prob_margin': avg_prob_margin}, epoch=epoch, mode=mode_validate)
         self.writer.add_scalar({'cos_margin': avg_cos_margin}, epoch=epoch, mode=mode_validate)
-        self.writer.add_plot('prob_margin_distribution', prob_margin_dist_fig, epoch=epoch, mode=mode_validate)
-        self.writer.add_plot('cos_margin_distribution', cos_margin_dist_fig, epoch=epoch, mode=mode_validate)
+        self.writer.add_plot('prob_margin_distribution', prob_margin_dist_fig, epoch=epoch)
+        self.writer.add_plot('cos_margin_distribution', cos_margin_dist_fig, epoch=epoch)
 
         mode_validate = 'test'
         self.writer.add_scalar({'NC_1': collapse_metric_test}, epoch=epoch, mode=mode_validate)

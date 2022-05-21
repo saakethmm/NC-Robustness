@@ -13,17 +13,17 @@ from utils import set_seed
 from validate_pgd import validate_pgd
 
 
-def log_params(conf: OrderedDict, parent_key: str = None):
-    for key, value in conf.items():
-        if parent_key is not None:
-            combined_key = f'{parent_key}-{key}'
-        else:
-            combined_key = key
-
-        if not isinstance(value, OrderedDict):
-            mlflow.log_param(combined_key, value)
-        else:
-            log_params(value, combined_key)
+# def log_params(conf: OrderedDict, parent_key: str = None):
+#     for key, value in conf.items():
+#         if parent_key is not None:
+#             combined_key = f'{parent_key}-{key}'
+#         else:
+#             combined_key = key
+#
+#         if not isinstance(value, OrderedDict):
+#             mlflow.log_param(combined_key, value)
+#         else:
+#             log_params(value, combined_key)
 
 
 def main(config: ConfigParser):
