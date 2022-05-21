@@ -199,8 +199,11 @@ def compute_ETF_feature(mu_c_dict, mu_G):
     for i, k in enumerate(mu_c_dict):
         H_bar[i] = mu_c_dict[k] - mu_G  # Subtract global mean from class mean
 
-    # TODO: Also change LR scheduler to have period of cosine match # epochs
-    # TODO: Normalize H_bar[i] across each column (compare for NC2 feature collapse)
+    # First normalize the class feature deviations to unit norm, then Frobenius norm to 1
+    # Intuition: If one vector had generally large deviations compared to another, the other vector
+    #  would be more harshly punished in Frobenius norm (whereas normalizing first would induce same
+    #  effect across all of them)
+    H_bar = F.normalize(H_bar, dim=1)
 
     HHT = torch.mm(H_bar, H_bar.T)
     HHT /= torch.norm(HHT, p='fro')
