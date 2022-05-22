@@ -1,6 +1,6 @@
-# NC_good_or_bad
+# NC-Robustness
 
-This repository contains the framework of [ELR](https://github.com/shengliu66/ELR) and [ConvNorm](https://github.com/shengliu66/ConvNorm). And includes the code for validation Neuron Collaspe from our earlier work [Neuron Collapse](https://github.com/tding1/Neural-Collapse).
+This repository is built off of [NC_good_or_bad](https://github.com/Heimine/NC_good_or_bad) to understand the relationship between NC and model robustness. It contains the framework of [ELR](https://github.com/shengliu66/ELR) and [ConvNorm](https://github.com/shengliu66/ConvNorm). And includes the code for validation Neuron Collaspe from our earlier work [Neuron Collapse](https://github.com/tding1/Neural-Collapse).
 
 Please check the readme for [ConvNorm](https://github.com/shengliu66/ConvNorm) for usage of config files (adversarial training, label noise and etc). And please check the readme for [Neuron Collapse](https://github.com/tding1/Neural-Collapse) for more information on validation Neuron Collapse.
 
