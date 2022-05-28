@@ -1,5 +1,5 @@
 {
-    "name": "Adv_Rrn2",
+    "name": "Adv_Rrn3",
     "n_gpu": 1,
     "seed": 8,
 
@@ -59,7 +59,7 @@
     },
 
     "trainer": {
-        "epochs": 90,
+        "epochs": 250,
         "save_dir": "saved/robust",
         "save_period": 1,
         "verbosity": 2,
