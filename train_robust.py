@@ -65,7 +65,7 @@ def main(config: ConfigParser):
 
     trainable_params = [{'params': [p for p in model.parameters() if (not getattr(p, 'bin_gate', False)) and (not getattr(p, 'bin_theta', False)) and (not getattr(p, 'srelu_bias', False)) and getattr(p, 'requires_grad', False)]},
               {'params': [p for p in model.parameters() if getattr(p, 'bin_gate', False) and getattr(p, 'requires_grad', False)], 
-               'lr': config['optimizer']['args']['lr']*1, 'weight_decay': 0}, # lr*10 --> lr*1
+               'lr': config['optimizer']['args']['lr'], 'weight_decay': 0},
                {'params': [p for p in model.parameters() if getattr(p, 'srelu_bias', False) and getattr(p, 'requires_grad', False)], 
                 'weight_decay': 0},
                 {'params': [p for p in model.parameters() if getattr(p, 'bin_theta', False) and getattr(p, 'requires_grad', False)], 
