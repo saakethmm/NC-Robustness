@@ -5,7 +5,7 @@
 
     "comet": {
         "api": "1TdBFrcmHJYRNzVCHNwIKS1p3",
-        "offline": false
+        "offline": true 
     },
 
     "arch": {
@@ -23,7 +23,7 @@
     "data_loader": {
         "type": "CIFAR10DataLoader",
 	"args":{
-            "data_dir": "/Users/saakethm/Documents/Courses/Winter_2022/EECS_499/Neural_Collapse/NC_good_or_bad",
+            "data_dir": "/data/xinshiduo/MyDataset/",
             "batch_size": 128,
             "shuffle": true,
             "num_batches": 0,
@@ -73,10 +73,10 @@
 
     "trainer": {
         "epochs": 200,
-        "save_dir": "saved/",
+        "save_dir": "./res_saved/",
         "save_period": 1,
         "verbosity": 2,
-        "label_dir": "saved/",
+        "label_dir": "./res_saved/",
         "monitor": "max val_my_metric",
         "early_stop": 2000,
         "_percent": "Percentage of noise",

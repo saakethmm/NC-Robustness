@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 class Regular_ReLU(nn.Module):
     """Regular ReLU"""

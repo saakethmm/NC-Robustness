@@ -1,7 +1,16 @@
+import sys
 
 import numpy as np
 from PIL import Image
 import torchvision
+from torch.utils.data.dataset import Subset
+from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances 
+import torch
+import torch.nn.functional as F
+import random 
+import json
+import os
+import pickle
 
 def get_cifar10(root, cfg_trainer, train=True,
                 transform_train=None, transform_val=None,
@@ -167,8 +176,6 @@ class CIFAR10_val(torchvision.datasets.CIFAR10):
             self.train_data = self.data
             self.train_labels = np.array(self.targets)
         self.train_labels_gt = self.train_labels.copy()
-
-    # For a user-provided percent of the training data, shuffle the labels randomly
     def symmetric_noise(self):
         
         indices = np.random.permutation(len(self.train_data))
@@ -176,7 +183,6 @@ class CIFAR10_val(torchvision.datasets.CIFAR10):
             if i < self.cfg_trainer['percent'] * len(self.train_data):
                 self.train_labels[idx] = np.random.randint(self.num_classes, dtype=np.int32)
 
-    # For a user-provided percent of the training data, assign specific wrong labels to certain classes
     def asymmetric_noise(self):
         for i in range(self.num_classes):
             indices = np.where(self.train_labels == i)[0]

@@ -1,9 +1,14 @@
 import torch.nn as nn
 import numpy as np
 from abc import abstractmethod
+from functools import partial
 
 from models.prec_conv import Preconditioned_Conv2d
 from models.activation import SReLU, Regular_ReLU, P_ReLU
+
+from torch.nn.modules.conv import _ConvNd
+from torch.nn.modules.utils import _single, _pair, _triple
+import torch.nn.functional as F
 
 class sn_conv2d(nn.Module):
     """

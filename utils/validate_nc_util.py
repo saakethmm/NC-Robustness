@@ -85,8 +85,7 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
     after_class_dict = dict()
     top1 = AverageMeter()
     top5 = AverageMeter()
-
-    # Mean and Std transformation for doing adv training (LATEST ADDITION)
+    # Mean and Std transformation for doing adv training
     dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
     dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)
         
@@ -101,30 +100,25 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
             outputs = model(inputs)
 
         features = fc_features.outputs[0][0]
-        # Need to normalize features along hidden layer dimension
+        # Need to normalize feature
         features = F.normalize(features, dim=1)
-        # Clear fc_features for next epoch
+        # Need to normalize feature
         fc_features.clear()
 
         mu_G += torch.sum(features, dim=0)
 
-        # For each training example
         for b in range(len(targets)):
             y = targets[b].item()
-            # If dictionary does not have the class yet, initialize
             if y not in mu_c_dict:
                 mu_c_dict[y] = features[b, :]
-                # Last hidden layer features
                 before_class_dict[y] = [features[b, :].detach().cpu().numpy()]
-                # Output layer features
                 after_class_dict[y] = [outputs[b, :].detach().cpu().numpy()]
-                # Number of examples for that class
                 num_class_dict[y] = 1
             else:
                 mu_c_dict[y] += features[b, :]
                 before_class_dict[y].append(features[b, :].detach().cpu().numpy())
                 after_class_dict[y].append(outputs[b, :].detach().cpu().numpy())
-                num_class_dict[y] += 1
+                num_class_dict[y] = num_class_dict[y] + 1
 
         num_data += targets.shape[0]
 
@@ -132,15 +126,13 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
         top1.update(prec1.item(), inputs.size(0))
         top5.update(prec5.item(), inputs.size(0))
 
-    # Average to find the global mean
     mu_G /= num_data
-    # Average by the number of examples in each class to find the class mean
     for i in range(len(mu_c_dict.keys())):
         mu_c_dict[i] /= num_class_dict[i]
 
     return mu_G, mu_c_dict, before_class_dict, after_class_dict, top1.avg, top5.avg
 
-# Within-class covariance matrix
+
 def compute_Sigma_W(device, before_class_dict, mu_c_dict, batchsize=128):
     
     num_data = 0
@@ -154,66 +146,31 @@ def compute_Sigma_W(device, before_class_dict, mu_c_dict, batchsize=128):
             Sigma_W += torch.sum(Sigma_W_batch, dim=0)
             num_data += features.shape[0]
 
-    # Average over all the data, equivalent to averaging over all examples in each class
     Sigma_W /= num_data
     return Sigma_W.detach().cpu().numpy()
 
-# Between-class covariance matrix
+
 def compute_Sigma_B(mu_c_dict, mu_G):
     Sigma_B = 0
-    # Number of classes
     K = len(mu_c_dict)
     for i in range(K):
         Sigma_B += (mu_c_dict[i] - mu_G).unsqueeze(1) @ (mu_c_dict[i] - mu_G).unsqueeze(0)
 
-    # Averaging over all classes
     Sigma_B /= K
 
     return Sigma_B.detach().cpu().numpy()
 
-# NC2: Difference between W covariance matrix (classifier) and ETF representation
+
 def compute_ETF(W):
     K = W.shape[0]
     WWT = torch.mm(W, W.T)
     WWT /= torch.norm(WWT, p='fro')
 
-    # Only use 1 / sqrt(K-1) for second term so both have Frobenius norm 1
     sub = (torch.eye(K) - 1 / K * torch.ones((K, K))).cuda() / pow(K - 1, 0.5)
     ETF_metric = torch.norm(WWT - sub, p='fro')
     return ETF_metric.detach().cpu().numpy().item()
 
-# NC2: Same as above but instead with the last-layer features themselves
-def compute_ETF_feature(mu_c_dict, mu_G):
-    """
-    args:
-    @ mu_c_dict: dictionary of class feature mean
-    @ mu_G: Global mean of features
-    Both of the above parameter could be obtained from the compute_info function
-    """
-    device = mu_G.device
-    classes = list(mu_c_dict.keys())
-    K = len(classes)
-    fea_len = mu_c_dict[classes[0]].shape[0]
 
-    H_bar = torch.zeros(K, fea_len).to(device)
-    for i, k in enumerate(mu_c_dict):
-        H_bar[i] = mu_c_dict[k] - mu_G  # Subtract global mean from class mean
-
-    # First normalize the class feature deviations to unit norm, then Frobenius norm to 1
-    # Intuition: If one vector had generally large deviations compared to another, the other vector
-    #  would be more harshly punished in Frobenius norm (whereas normalizing first would induce same
-    #  effect across all of them)
-    H_bar = F.normalize(H_bar, dim=1)
-
-    HHT = torch.mm(H_bar, H_bar.T)
-    HHT /= torch.norm(HHT, p='fro')
-
-    sub = (torch.eye(K) - 1 / K * torch.ones((K, K))).to(device) / pow(K - 1, 0.5)
-
-    ETF_metric_tilde = torch.norm(HHT - sub, p='fro')
-    return ETF_metric_tilde.detach().cpu().numpy().item()
-
-# NC4: Checking to see if b is compensating for ReLU misaligned features (mu_G)
 def compute_Wh_b_relation(W, mu_G, b):
     Wh = torch.mv(W, mu_G.cuda())
     res_b = torch.norm(Wh + b, p='fro')
@@ -284,11 +241,10 @@ def compute_margin(device, before_class_dict, after_class_dict, W, b, mu_G, batc
     cos_margin_dist_fig = plot_cos_margin_distribution(all_cos_margin)
     return avg_prob_margin.item(), avg_cos_margin.item(), prob_margin_dist_fig, cos_margin_dist_fig
 
-# NC3:
+
 def compute_W_H_relation(W, mu_c_dict, mu_G):
     K = len(mu_c_dict)
     M = torch.empty(mu_c_dict[0].shape[0], K)
-    # M is the same, finding the difference between class mean and global mean
     for i in range(K):
         M[:, i] = mu_c_dict[i] - mu_G
     sub = 1 / np.sqrt(K-1) * (torch.eye(K) - torch.ones(K, K) / K)
@@ -323,28 +279,15 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
     if not have_bias:
         b = torch.zeros((W.shape[0],), device=device)
 
-    # Last-layer features global mean, Last-layer features class means, last layer features, output layer, top1 acc, top5 acc
     mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(device, model, fc_features, trainloader, do_adv = do_adv)
     mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(device, model, fc_features, testloader, do_adv = do_adv)
-
-
-    # All metrics on training data, NOT testing data
+    
     Sigma_W = compute_Sigma_W(device, before_class_dict_train, mu_c_dict_train, batchsize=batchsize)
+    
     Sigma_B = compute_Sigma_B(mu_c_dict_train, mu_G_train)
 
-    Sigma_W_test = compute_Sigma_W(device, before_class_dict_test, mu_c_dict_test, batchsize=batchsize)
-    Sigma_B_test = compute_Sigma_B(mu_c_dict_test, mu_G_test)
-
-    # Computing metric for within-class variability collapse (NC1)
     collapse_metric = np.trace(Sigma_W @ scilin.pinv(Sigma_B)) / len(mu_c_dict_train)
-    collapse_metric_test = np.trace(Sigma_W_test @ scilin.pinv(Sigma_B_test)) / len(mu_c_dict_test)
-
-    # Not same as Papyan paper (they tested equi-norm and maximal angle separation of
-    # class-means and global mean), instead here we test closeness to Simplex ETF directly (NC2)
     ETF_metric = compute_ETF(W)
-    ETF_feature_metric = compute_ETF_feature(mu_c_dict_train, mu_G_train)
-    ETF_feature_metric_test = compute_ETF_feature(mu_c_dict_test, mu_G_test)
-
     # Add for nuclear metric
     #nuclear_epoch = compute_nuclear_metric(before_class_dict_train)
     nf_metric_epoch = compute_nuclear_frobenius(before_class_dict_train)
@@ -355,14 +298,9 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
         compute_margin(device, before_class_dict_train, after_class_dict_train, W, b, mu_G_train, batchsize=batchsize)
     info_dict['prob_margin'].append(avg_prob_margin)
     info_dict['cos_margin'].append(avg_cos_margin)
-
-    # NC3 metric
+    
     WH_relation_metric = compute_W_H_relation(W, mu_c_dict_train, mu_G_train) # Added back
-    WH_relation_metric_test = compute_W_H_relation(W, mu_c_dict_test, mu_G_test)
-
-    # NC4 metric (different from Papyan paper!), measuring bias collapse to account for positive mu_G (due to ReLU)
     Wh_b_relation_metric = compute_Wh_b_relation(W, mu_G_train, b)
-    Wh_b_relation_metric_test = compute_Wh_b_relation(W, mu_G_test, b)
 
     info_dict['collapse_metric'].append(collapse_metric)
     info_dict['ETF_metric'].append(ETF_metric)
@@ -391,9 +329,8 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
 
     print(f"Epoch {epoch} is processed")
     
-    return collapse_metric, nf_metric_epoch, ETF_metric, ETF_feature_metric, WH_relation_metric, Wh_b_relation_metric,\
-           avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig, \
-           collapse_metric_test, ETF_feature_metric_test, WH_relation_metric_test, Wh_b_relation_metric_test
+    return collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric, Wh_b_relation_metric,\
+           avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig
         
 
 def plot_nc(info_dict, epochs):

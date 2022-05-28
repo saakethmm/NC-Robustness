@@ -1,9 +1,17 @@
 import torch
-from torch.autograd import Variable
-import torch.nn as nn
-import models.model as module_arch
 import sys
-from utils import load_from_state_dict, set_seed
+from torch.autograd import Variable
+import numpy as np
+import time
+import torch.nn as nn
+from tqdm import tqdm
+import models.model as module_arch
+#from tqdm import tqdm_notebook as tqdm
+from typing import List
+import sys
+from base import BaseTrainer
+from utils import inf_loop, get_logger, Timer, load_from_state_dict, set_seed
+from collections import OrderedDict
 import argparse
 from parse_config import ConfigParser
 import data_loader.data_loaders as module_data
@@ -162,7 +170,7 @@ if __name__ == '__main__':
                         help='config file path (default: None)')
     parser.add_argument('-s', '--checkpoint_path', type=str, required=True,
                         help='path to find model checkpoint (default: None)')
-    parser.add_argument('-d', '--device', default=None, type=str,
+    parser.add_argument('-d', '--device', default='0', type=str,
                         help='indices of GPUs to enable (default: all)')
     parser.add_argument('-r', '--resume', default=None, type=str,
                         help='path to latest checkpoint (default: None)')

@@ -18,7 +18,7 @@ class BasicBlock(nn.Module):
                 norm_layer=None,
                 activation_layer=None):
         super(BasicBlock, self).__init__()
-        # print(activation_layer)
+        print(activation_layer)
         self.conv1 = conv_layer(
             in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.norm1 = norm_layer(planes)

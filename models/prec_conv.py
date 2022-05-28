@@ -1,9 +1,10 @@
 import torch
+#import torch.fft
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 from torch.nn.modules.conv import _ConvNd
-from torch.nn.modules.utils import _pair
+from torch.nn.modules.utils import _single, _pair, _triple
 
 def complex_abs(tensor):
     return (tensor**2).sum(-1)

@@ -1,9 +1,12 @@
-from torchvision import transforms
+import sys
+
+from torchvision import datasets, transforms
 from base import BaseDataLoader
 from data_loader.cifar10 import get_cifar10
 from data_loader.cifar100 import get_cifar100
 from data_loader.mini_imagenet import get_miniimagenet
 from parse_config import ConfigParser
+from PIL import Image
 
 
 class CIFAR10DataLoader(BaseDataLoader):
@@ -12,7 +15,7 @@ class CIFAR10DataLoader(BaseDataLoader):
         cfg_trainer = config['trainer']
         
         if cfg_trainer["do_adv"]:
-            print("Doing adv. attack")
+            print("Doint adv. attack")
             transform_train = transforms.Compose([
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),

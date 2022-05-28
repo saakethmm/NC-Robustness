@@ -1,29 +1,39 @@
 import comet_ml
 import argparse
 import collections
+import sys
+import requests
+import socket
 import torch
 import data_loader.data_loaders as module_data
 import models.loss as module_loss
 import models.metric as module_metric
 import models.model as module_arch
 from parse_config import ConfigParser
-from trainer import Adv_Trainer
+from trainer import Trainer, Adv_Trainer
 from collections import OrderedDict
+import random
 from utils import set_seed
+import torchvision.transforms as transforms
+import torchvision
+import torch.nn as nn
+import os
 from validate_pgd import validate_pgd
+os.environ['CUDA_VISIBLE_DEVICES']='0'
+import setproctitle
+setproctitle.setproctitle('NC@xinshiduo')
 
+def log_params(conf: OrderedDict, parent_key: str = None):
+    for key, value in conf.items():
+        if parent_key is not None:
+            combined_key = f'{parent_key}-{key}'
+        else:
+            combined_key = key
 
-# def log_params(conf: OrderedDict, parent_key: str = None):
-#     for key, value in conf.items():
-#         if parent_key is not None:
-#             combined_key = f'{parent_key}-{key}'
-#         else:
-#             combined_key = key
-#
-#         if not isinstance(value, OrderedDict):
-#             mlflow.log_param(combined_key, value)
-#         else:
-#             log_params(value, combined_key)
+        if not isinstance(value, OrderedDict):
+            mlflow.log_param(combined_key, value)
+        else:
+            log_params(value, combined_key)
 
 
 def main(config: ConfigParser):
@@ -65,7 +75,7 @@ def main(config: ConfigParser):
 
     trainable_params = [{'params': [p for p in model.parameters() if (not getattr(p, 'bin_gate', False)) and (not getattr(p, 'bin_theta', False)) and (not getattr(p, 'srelu_bias', False)) and getattr(p, 'requires_grad', False)]},
               {'params': [p for p in model.parameters() if getattr(p, 'bin_gate', False) and getattr(p, 'requires_grad', False)], 
-               'lr': config['optimizer']['args']['lr'], 'weight_decay': 0},
+               'lr': config['optimizer']['args']['lr']*1, 'weight_decay': 0}, # lr*10 --> lr*1
                {'params': [p for p in model.parameters() if getattr(p, 'srelu_bias', False) and getattr(p, 'requires_grad', False)], 
                 'weight_decay': 0},
                 {'params': [p for p in model.parameters() if getattr(p, 'bin_theta', False) and getattr(p, 'requires_grad', False)], 
@@ -91,16 +101,16 @@ def main(config: ConfigParser):
     
     # After training, run the pgd attacker
     print(next(model.parameters()).device)
-    validate_pgd(test_data_loader, model, config)
+    validate_pgd(test_data_loader, model, config) #TODO:
 
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default=None, type=str,
+    args.add_argument('-c', '--config', default='./config_robust_train_cifar100.json', type=str,
                       help='config file path (default: None)')
     args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
-    args.add_argument('-d', '--device', default=None, type=str,
+    args.add_argument('-d', '--device', default=0, type=str,
                       help='indices of GPUs to enable (default: all)')
 
     # custom cli options to modify configuration from default values given in json file.

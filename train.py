@@ -1,6 +1,10 @@
+import comet_ml
 import argparse
 import collections
-import comet_ml
+import sys
+import requests
+import socket
+import torch
 import data_loader.data_loaders as module_data
 import models.loss as module_loss
 import models.metric as module_metric
@@ -8,22 +12,28 @@ import models.model as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from collections import OrderedDict
+import random
+import os
+import pdb
 from utils import set_seed
-import torch
+import torchvision.transforms as transforms
+import torchvision
+import torch.nn as nn
+os.environ['CUDA_VISIBLE_DEVICES']='6'
+import setproctitle
+setproctitle.setproctitle('NC@xinshiduo')
 
+def log_params(conf: OrderedDict, parent_key: str = None):
+    for key, value in conf.items():
+        if parent_key is not None:
+            combined_key = f'{parent_key}-{key}'
+        else:
+            combined_key = key
 
-
-# def log_params(conf: OrderedDict, parent_key: str = None):
-#     for key, value in conf.items():
-#         if parent_key is not None:
-#             combined_key = f'{parent_key}-{key}'
-#         else:
-#             combined_key = key
-#
-#         if not isinstance(value, OrderedDict):
-#             mlflow.log_param(combined_key, value)
-#         else:
-#             log_params(value, combined_key)
+        if not isinstance(value, OrderedDict):
+            mlflow.log_param(combined_key, value)
+        else:
+            log_params(value, combined_key)
 
 
 def main(config: ConfigParser):
@@ -54,9 +64,9 @@ def main(config: ConfigParser):
 
     # build model architecture, then print to console
     model = config.initialize('arch', module_arch)
-
-    train_loss = getattr(module_loss, config['train_loss']) # config.initialize('train_loss', module_loss)
-    val_loss = getattr(module_loss, config['val_loss']) # config.initialize('val_loss', module_loss)
+    # pdb.set_trace()
+    train_loss = config.initialize('train_loss', module_loss)#getattr(module_loss, config['train_loss'])
+    val_loss = config.initialize('val_loss', module_loss)#getattr(module_loss, config['val_loss'])
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     logger.info(str(model).split('\n')[-1])
@@ -76,8 +86,6 @@ def main(config: ConfigParser):
 
     lr_scheduler = config.initialize('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
-    # Trainer is specific to this application, where base trainer then takes the
-    # the model, metrics, optimizer, config
     trainer = Trainer(model, train_loss, metrics, optimizer,
                       config=config,
                       data_loader=data_loader,
@@ -93,7 +101,7 @@ def main(config: ConfigParser):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default=None, type=str,
+    args.add_argument('-c', '--config', default='./config_miniimagenet_standard.json', type=str,
                       help='config file path (default: None)')
     args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
@@ -119,5 +127,5 @@ if __name__ == '__main__':
     ]
     config = ConfigParser.get_instance(args, options)
 
-    set_seed(manualSeed=config['seed'])
+    set_seed(manualSeed = config['seed'])
     main(config)

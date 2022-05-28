@@ -23,7 +23,7 @@
     "data_loader": {
         "type": "CIFAR10DataLoader",
 	"args":{
-            "data_dir": "/scratch/xl998/DL/data",
+            "data_dir": "/data/xinshiduo/MyDataset/",
             "batch_size": 128,
             "shuffle": true,
             "num_batches": 0,
@@ -58,11 +58,11 @@
     },
 
     "trainer": {
-        "epochs": 30,
-        "save_dir": "saved/",
+        "epochs": 200,
+        "save_dir": "./res_saved/",
         "save_period": 1,
         "verbosity": 2,
-        "label_dir": "saved/",
+        "label_dir": "./res_saved/",
         "monitor": "max val_my_metric",
         "early_stop": 2000,
         "_percent": "Percentage of noise",

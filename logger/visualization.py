@@ -1,4 +1,4 @@
-import comet_ml
+import importlib
 try:
     from comet_ml import Experiment as CometExperiment
     from comet_ml import OfflineExperiment as CometOfflineExperiment
@@ -7,7 +7,6 @@ except ImportError:  # pragma: no-cover
 else:
     _COMET_AVAILABLE = True
 
-import importlib
 from utils import Timer
 import torch
 from torch import is_tensor
@@ -74,7 +73,6 @@ class CometWriter:
             self.timer.reset()
         else:
             duration = self.timer.check()
-            # Plots how many batches can be processed per second at the current rate
             self.add_scalar({'steps_per_sec': 1 / duration})
 
     def log_hyperparams(self, params: Dict[str, Any]) -> None:
@@ -84,14 +82,9 @@ class CometWriter:
         self.experiment.log_code(file_name=file_name, folder=folder)
 
 
-    def add_scalar(self, metrics: Dict[str, Union[torch.Tensor, float]], step: Optional[int] = None,
-                   epoch: Optional[int] = None, mode: Optional[str] = None) -> None:
+    def add_scalar(self, metrics: Dict[str, Union[torch.Tensor, float]], step: Optional[int] = None, epoch: Optional[int] = None) -> None:
         metrics_renamed = {}
-        if mode is not None:
-            self.mode = mode
         for key, val in metrics.items():
-            # THIS is where the type of data is defined
-            # (self.mode - repurposed from comet online/offline setting to train/val/test)
             tag = '{}/{}'.format(key, self.mode)
             if is_tensor(val):
                 metrics_renamed[tag] = val.cpu().detach()

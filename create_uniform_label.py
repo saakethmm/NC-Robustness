@@ -2,6 +2,8 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10
 import torchvision.transforms as transforms
+import numpy as np
+import torch.nn as nn
 import pickle
 import argparse
 

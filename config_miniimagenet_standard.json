@@ -5,7 +5,7 @@
 
     "comet": {
         "api": "sPY4OzU4lhG0sGdI1PpUvy1ac",
-        "offline": false
+        "offline": true
     },
 
     "arch": {
@@ -23,7 +23,7 @@
     "data_loader": {
         "type": "MiniImageNetDataLoader",
 	"args":{
-            "data_dir": "/scratch/xl998/DL/shared/mini_imagenet",
+            "data_dir": "/data/xinshiduo/MyDataset/",
             "batch_size": 128,
             "shuffle": true,
             "num_batches": 0,
@@ -42,9 +42,22 @@
         }
     },
 
-
-    "train_loss": "cross_entropy",
-    "val_loss": "cross_entropy",
+    "train_loss": {
+        "type": "focalLoss",
+        "args": {
+            "alpha": 1.0,
+            "gamma": 2.0,
+            "num_class": 100
+        }
+    },
+    "val_loss": {
+        "type": "focalLoss",
+        "args": {
+            "alpha": 1.0,
+            "gamma": 20.0,
+            "num_class": 100
+        }
+    },
     "metrics": [
         "my_metric", "my_metric2"
     ],
@@ -59,10 +72,10 @@
 
     "trainer": {
         "epochs": 200,
-        "save_dir": "saved/",
+        "save_dir": "./mini_saved/",
         "save_period": 1,
         "verbosity": 2,
-        "label_dir": "saved/",
+        "label_dir": "./mini_saved/",
         "monitor": "max test_my_metric",
         "early_stop": 2000,
         "_percent": "Percentage of noise",

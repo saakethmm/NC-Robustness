@@ -1,11 +1,15 @@
 import numpy as np
 import torch
+import torch.nn as nn
 from tqdm import tqdm
+#from tqdm import tqdm_notebook as tqdm
 from typing import List
+import sys
 from base import BaseTrainer
-from utils import inf_loop
-
-
+from utils import inf_loop, get_logger, Timer
+from collections import OrderedDict
+import argparse
+import pdb
 
 class Trainer(BaseTrainer):
     """
@@ -15,7 +19,7 @@ class Trainer(BaseTrainer):
     """
     def __init__(self, model, train_criterion, metrics, optimizer, config, data_loader,
                  valid_data_loader=None, test_data_loader=None, lr_scheduler=None, len_epoch=None, val_criterion=None):
-        super().__init__(model, metrics, optimizer, config)
+        super().__init__(model, metrics, optimizer, config, val_criterion)
         self.config = config
         self.data_loader = data_loader
         if len_epoch is None:
@@ -37,7 +41,6 @@ class Trainer(BaseTrainer):
         self.test_loss_list: List[float] = []
 
         self.train_criterion = train_criterion
-        self.val_criterion = val_criterion
 
         #Visdom visualization
         self.new_best_val = False
@@ -78,7 +81,7 @@ class Trainer(BaseTrainer):
                 data, label = data.to(self.device), label.to(self.device)
                 
                 output = self.model(data)
-
+                # pdb.set_trace()
                 loss = self.train_criterion(output, label)
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -89,7 +92,7 @@ class Trainer(BaseTrainer):
                     p.data.clamp_(min=0, max=1)
 
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx, epoch=epoch)
-                self.writer.add_scalar({'loss': loss.item()}) # Every add_scalar adds a point to the Comet ML chart
+                self.writer.add_scalar({'loss': loss.item()})
                 self.train_loss_list.append(loss.item())
                 total_loss += loss.item()
                 total_metrics += self._eval_metrics(output, label)
