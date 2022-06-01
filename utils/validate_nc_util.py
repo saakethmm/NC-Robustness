@@ -5,7 +5,7 @@ import torchvision.transforms as transforms
 import torch
 import torch.nn.functional as F
 import scipy.linalg as scilin
-
+import pdb
 import copy
 import os
 import numpy as np
@@ -424,7 +424,8 @@ def plot_nuclear(info, epochs, XTICKS):
     plt.xticks(XTICKS, fontsize=30)
 
     ymax = np.max(all_nf_metric) + 0.5
-    plt.yticks(np.arange(0, ymax, int(ymax/5)), fontsize=30) 
+    # pdb.set_trace()
+    plt.yticks(np.arange(0, ymax, (ymax/5)), fontsize=30) 
     
     plt.axis([0, epochs, 0, ymax])  
 

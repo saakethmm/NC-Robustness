@@ -43,22 +43,8 @@
     },
 
 
-    "train_loss": {
-        "type": "focalLoss",
-        "args": {
-            "alpha": 1.0,
-            "gamma": 2.0,
-            "num_class": 10
-        }
-    },
-    "val_loss": {
-        "type": "focalLoss",
-        "args": {
-            "alpha": 1.0,
-            "gamma": 20.0,
-            "num_class": 10
-        }
-    },
+    "train_loss": "cross_entropy",
+    "val_loss": "cross_entropy",
     "metrics": [
         "my_metric", "my_metric2"
     ],
@@ -66,13 +52,13 @@
     "lr_scheduler": {
         "type": "CosineAnnealingWarmRestarts",
         "args": {
-            "T_0": 200,
+            "T_0": 500,
             "eta_min": 0.0001
         }
     },
 
     "trainer": {
-        "epochs": 200,
+        "epochs": 500,
         "save_dir": "./res_saved/",
         "save_period": 1,
         "verbosity": 2,

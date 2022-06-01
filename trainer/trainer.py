@@ -82,7 +82,8 @@ class Trainer(BaseTrainer):
                 
                 output = self.model(data)
                 # pdb.set_trace()
-                loss = self.train_criterion(output, label)
+                # loss = self.train_criterion(output, label)
+                loss = torch.nn.functional.cross_entropy(output, label)
                 self.optimizer.zero_grad()
                 loss.backward()
                 
@@ -143,7 +144,8 @@ class Trainer(BaseTrainer):
                     progress.set_description_str(f'Valid epoch {epoch}')
                     data, label = data.to(self.device), label.to(self.device)
                     output = self.model(data)
-                    loss = self.val_criterion(output, label)
+                    # loss = self.val_criterion(output, label)
+                    loss = torch.nn.functional.cross_entropy(output, label)
 
                     self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, epoch=epoch, mode = 'valid')
                     self.writer.add_scalar({'loss': loss.item()})
@@ -187,7 +189,8 @@ class Trainer(BaseTrainer):
                     data, label = data.to(self.device), label.to(self.device)
                     output = self.model(data)
                     
-                    loss = self.val_criterion(output, label)
+                    # loss = self.val_criterion(output, label)
+                    loss = torch.nn.functional.cross_entropy(output, label)
 
                     self.writer.set_step((epoch - 1) * len(self.test_data_loader) + batch_idx, epoch=epoch, mode = 'test')
                     self.writer.add_scalar({'loss': loss.item()})

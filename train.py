@@ -65,8 +65,8 @@ def main(config: ConfigParser):
     # build model architecture, then print to console
     model = config.initialize('arch', module_arch)
     # pdb.set_trace()
-    train_loss = config.initialize('train_loss', module_loss)#getattr(module_loss, config['train_loss'])
-    val_loss = config.initialize('val_loss', module_loss)#getattr(module_loss, config['val_loss'])
+    train_loss = getattr(module_loss, config['train_loss']) #config.initialize('train_loss', module_loss)#
+    val_loss = getattr(module_loss, config['val_loss']) #config.initialize('val_loss', module_loss)#
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     logger.info(str(model).split('\n')[-1])
@@ -101,7 +101,7 @@ def main(config: ConfigParser):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default='./config_miniimagenet_standard.json', type=str,
+    args.add_argument('-c', '--config', default='./config_cifar10_standard.json', type=str,
                       help='config file path (default: None)')
     args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')

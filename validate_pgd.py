@@ -15,7 +15,11 @@ from collections import OrderedDict
 import argparse
 from parse_config import ConfigParser
 import data_loader.data_loaders as module_data
-
+import os
+import pdb
+os.environ['CUDA_VISIBLE_DEVICES']='0'
+import setproctitle
+setproctitle.setproctitle('NC@xinshiduo')
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
@@ -93,8 +97,8 @@ def validate_pgd(test_loader, model, configs):
             invar = Variable(input, requires_grad=True)
             in1 = invar - dmean[None,:,None,None]
             in1.div_(dstd[None,:,None,None])
-            #output = model(in1)
-            feature, output = model(in1)
+            output = model(in1)
+            # feature, output = model(in1)
             ascend_loss = criterion(output, target)
             ascend_grad = torch.autograd.grad(ascend_loss, invar)[0]
             pert = fgsm(ascend_grad, step)
@@ -107,8 +111,8 @@ def validate_pgd(test_loader, model, configs):
         input.sub_(dmean[None,:,None,None]).div_(dstd[None,:,None,None])
         with torch.no_grad():
             # compute output
-            #output = model(input)
-            feature, output = model(input)
+            output = model(input)
+            # feature, output = model(input)
             loss = criterion(output, target)
 
             # measure accuracy and record loss
@@ -128,8 +132,8 @@ def validate_pgd(test_loader, model, configs):
 
     print(' PGD Final Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
         .format(top1=top1, top5=top5))
-
-    return top1.avg
+    # pdb.set_trace()
+    return float(top1.avg),float(top5.avg)
 
 
 def main(args, config: ConfigParser):
@@ -166,9 +170,9 @@ def main(args, config: ConfigParser):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Template')
-    parser.add_argument('-c', '--config', type=str, required=True,
+    parser.add_argument('-c', '--config', type=str, default="./config_robust_train.json",
                         help='config file path (default: None)')
-    parser.add_argument('-s', '--checkpoint_path', type=str, required=True,
+    parser.add_argument('-s', '--checkpoint_path', type=str, default="/data/xinshiduo/code/NC_good_or_bad-main/res_saved/models/Robust_experimentCIFAR10DataLoaderresnet18-num_classes-10-norm_layer_type-bn-conv_layer_type-conv-linear_layer_type-linear-activation_layer_type-relu-etf_fc-False-Seed=8/0525_000049/model_epoch_200.pth",
                         help='path to find model checkpoint (default: None)')
     parser.add_argument('-d', '--device', default='0', type=str,
                         help='indices of GPUs to enable (default: all)')

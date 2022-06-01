@@ -225,7 +225,8 @@ class BaseTrainer:
         }
 
         path = str(self.checkpoint_dir / f'model_epoch_{epoch}.pth')
-        torch.save(state, path)
+        if(epoch%5==0):  # Manolo change
+            torch.save(state, path)
         self.logger.info("Saving current model: current model save at: {} ...".format(path))
     
     def _validate_nc(self, epoch):

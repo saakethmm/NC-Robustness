@@ -54,17 +54,30 @@ class CIFAR100DataLoader(BaseDataLoader):
         config = ConfigParser.get_instance()
         cfg_trainer = config['trainer']
         
-        transform_train = transforms.Compose([
+        if cfg_trainer["do_adv"]:
+            print("Doint adv. attack")
+            transform_train = transforms.Compose([
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+            ])
+            transform_val = transforms.Compose([
+                transforms.ToTensor(),
+            ])
+        else:
+            transform_train = transforms.Compose([
                 #transforms.ColorJitter(brightness= 0.4, contrast= 0.4, saturation= 0.4, hue= 0.1),
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
             ])
-        transform_val = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
-        ])
+            transform_val = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+            ])
+
+       
         self.data_dir = data_dir
 
         # noise_file='%sCIFAR100_%.1f_Asym_%s.json'%(config['data_loader']['args']['data_dir'],cfg_trainer['percent'],cfg_trainer['asym'])
@@ -84,16 +97,27 @@ class MiniImageNetDataLoader(BaseDataLoader):
         config = ConfigParser.get_instance()
         cfg_trainer = config['trainer']
         
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(84, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        ])
-        transform_val = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        ])
+        if cfg_trainer["do_adv"]:
+            print("Doint adv. attack")
+            transform_train = transforms.Compose([
+                transforms.RandomCrop(84, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+            ])
+            transform_val = transforms.Compose([
+                transforms.ToTensor(),
+            ])
+        else:
+            transform_train = transforms.Compose([
+                transforms.RandomCrop(84, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            ])
+            transform_val = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            ])
         
         self.data_dir = data_dir
 
