@@ -150,10 +150,18 @@ def compute_info(args, model, fc_features, dataloader, do_adv = False):
     after_class_dict = dict()
     top1 = AverageMeter()
     top5 = AverageMeter()
-    # Mean and Std transformation for doing adv training
-    dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
-    dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)
-    
+    # Mean and Std transformation for doing adv training MODIFIED: do norm for cifar100 and mini
+    if args.dataset == "cifar10":
+        dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(args.device)
+        dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(args.device)
+    elif args.dataset == "cifar100":
+        dmean = torch.tensor([0.5071, 0.4867, 0.4408]).to(args.device)
+        dstd = torch.tensor([0.2675, 0.2565, 0.2761]).to(args.device)
+    elif args.dataset == "miniimagenet":
+        dmean = torch.tensor([0.485, 0.456, 0.406]).to(args.device)
+        dstd = torch.tensor([0.229, 0.224, 0.225]).to(args.device)
+    else :
+        raise NotImplementedError
     for batch_idx, (inputs, targets) in enumerate(dataloader):
 
         inputs, targets = inputs.to(args.device), targets.to(args.device)
@@ -378,6 +386,7 @@ def main():
 
     
     # Dataset part
+    # MODIFIED : and I just recall that there's no case I running this file by main() [2022.6.3 @ Manolo]:
     if args.dataset == "cifar10":
         num_classes = 10
         transform_train = transforms.Compose([
@@ -398,6 +407,29 @@ def main():
             trainset, batch_size=128, shuffle=True, num_workers=2)
 
         testset = torchvision.datasets.CIFAR10(
+            root=args.data_dir, train=False, download=True, transform=transform_test)
+        testloader = torch.utils.data.DataLoader(
+            testset, batch_size=100, shuffle=False, num_workers=2)
+    elif args.dataset == "cifar100":
+        num_classes = 100
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+        ])
+
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)),
+        ])
+
+        trainset = torchvision.datasets.CIFAR100(
+            root=args.data_dir, train=True, download=True, transform=transform_train)
+        trainloader = torch.utils.data.DataLoader(
+            trainset, batch_size=128, shuffle=True, num_workers=2)
+
+        testset = torchvision.datasets.CIFAR100(
             root=args.data_dir, train=False, download=True, transform=transform_test)
         testloader = torch.utils.data.DataLoader(
             testset, batch_size=100, shuffle=False, num_workers=2)

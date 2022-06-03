@@ -11,7 +11,7 @@ import os
 import numpy as np
 from utils import load_from_state_dict
 import matplotlib.pyplot as plt
-
+import pdb
 class AverageMeter(object):
     """Computes and stores the average and current value
        Imported from https://github.com/pytorch/examples/blob/master/imagenet/main.py#L247-L262
@@ -75,7 +75,7 @@ def compute_accuracy(output, target, topk=(1,)):
     return res
 
 
-def compute_info(device, model, fc_features, dataloader, do_adv=False):
+def compute_info(config, device, model, fc_features, dataloader, do_adv=False):
 
     num_data = 0
     mu_G = 0
@@ -86,9 +86,19 @@ def compute_info(device, model, fc_features, dataloader, do_adv=False):
     top1 = AverageMeter()
     top5 = AverageMeter()
     # Mean and Std transformation for doing adv training
-    dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
-    dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)
-        
+    # MODIFIED: 
+    pdb.set_trace()
+    if config["data_loader"]["type"]== "CIFAR10DataLoader" :
+        dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
+        dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)
+    elif config["data_loader"]["type"]== "CIFAR100DataLoader" :
+        dmean = torch.tensor([0.5071, 0.4867, 0.4408]).to(device)
+        dstd = torch.tensor([0.2675, 0.2565, 0.2761]).to(device)
+    elif config["data_loader"]["type"]== "MiniImageNetDataLoader" :
+        dmean = torch.tensor([0.485, 0.456, 0.406]).to(device)
+        dstd = torch.tensor([0.229, 0.224, 0.225]).to(device)
+    else :
+        raise NotImplementedError
     for batch_idx, (inputs, targets) in enumerate(dataloader):
 
         inputs, targets = inputs.to(device), targets.to(device)
@@ -256,7 +266,7 @@ def compute_W_H_relation(W, mu_c_dict, mu_G):
     return res.detach().cpu().numpy()
 
 
-def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader, info_dict, do_adv = False):
+def validate_nc_epoch(config,checkpoint_dir, epoch, orig_model, trainloader, testloader, info_dict, do_adv = False):
     print(f"Processing the NC information for epoch {epoch}")
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = copy.deepcopy(orig_model)
@@ -279,8 +289,8 @@ def validate_nc_epoch(checkpoint_dir, epoch, orig_model, trainloader, testloader
     if not have_bias:
         b = torch.zeros((W.shape[0],), device=device)
 
-    mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(device, model, fc_features, trainloader, do_adv = do_adv)
-    mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(device, model, fc_features, testloader, do_adv = do_adv)
+    mu_G_train, mu_c_dict_train, before_class_dict_train, after_class_dict_train, train_acc1, train_acc5 = compute_info(config,device, model, fc_features, trainloader, do_adv = do_adv)
+    mu_G_test, mu_c_dict_test, before_class_dict_test, after_class_dict_test, test_acc1, test_acc5 = compute_info(config,device, model, fc_features, testloader, do_adv = do_adv)
     
     Sigma_W = compute_Sigma_W(device, before_class_dict_train, mu_c_dict_train, batchsize=batchsize)
     

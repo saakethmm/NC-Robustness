@@ -231,10 +231,10 @@ class BaseTrainer:
     
     def _validate_nc(self, epoch):
         collapse_metric, nf_metric_epoch, ETF_metric, WH_relation_metric, Wh_b_relation_metric, \
-        avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = validate_nc_epoch(
+        avg_prob_margin, avg_cos_margin, prob_margin_dist_fig, cos_margin_dist_fig = validate_nc_epoch(self.config,
             self.checkpoint_dir, epoch, self.model, self.data_loader, self.test_data_loader, self.info_dict,
             do_adv = self.do_adv
-        )
+        ) #Manolo: here pass in the config
         
         self.writer.add_scalar({'NC_1': collapse_metric}, epoch=epoch)
         self.writer.add_scalar({'NF_metric': nf_metric_epoch}, epoch=epoch)
