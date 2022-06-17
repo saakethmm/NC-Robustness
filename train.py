@@ -19,7 +19,7 @@ from utils import set_seed
 import torchvision.transforms as transforms
 import torchvision
 import torch.nn as nn
-os.environ['CUDA_VISIBLE_DEVICES']='6'
+os.environ['CUDA_VISIBLE_DEVICES']='1'
 import setproctitle
 setproctitle.setproctitle('NC@xinshiduo')
 

@@ -18,9 +18,9 @@ import data_loader.data_loaders as module_data
 import os
 import matplotlib.pyplot as plt
 
-os.environ['CUDA_VISIBLE_DEVICES']='0'
+os.environ['CUDA_VISIBLE_DEVICES']='5'
 import setproctitle
-setproctitle.setproctitle('NC@xinshiduo')
+setproctitle.setproctitle('pgdAttack@xinshiduo')
 
 from validate_pgd import validate_pgd
 
@@ -70,17 +70,17 @@ def main(args, config: ConfigParser):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch Template')
-    parser.add_argument('-c', '--config', type=str, default="./config_robust_train_cifar100.json",
+    parser.add_argument('-c', '--config', type=str, default="./config_cifar10_pgd.json",
                         help='config file path (default: None)')
-    parser.add_argument('-s', '--checkpoint_path', type=str, default="/data/xinshiduo/code/NC_good_or_bad-main/res_saved/models/Robust_experimentCIFAR100DataLoaderresnet18-num_classes-100-norm_layer_type-bn-conv_layer_type-conv-linear_layer_type-linear-activation_layer_type-relu-etf_fc-False-Seed=8/0525_151134/",
+    parser.add_argument('-s', '--checkpoint_path', type=str, default="/data/xinshiduo/new_code/copy1/res_saved/models/ExperimentCIFAR10DataLoaderresnet18-num_classes-10-norm_layer_type-bn-conv_layer_type-conv-linear_layer_type-linear-activation_layer_type-relu-etf_fc-False-Seed=12/0604_190809/",
                         help='path to find model checkpoint (default: None)')
     parser.add_argument('-d', '--device', default='0', type=str,
                         help='indices of GPUs to enable (default: all)')
-    parser.add_argument('-e', '--epoch', default=200, type=int,
+    parser.add_argument('-e', '--epoch', default=500, type=int,
                         help='---')
     parser.add_argument('-r', '--resume', default=None, type=str,
     help='path to latest checkpoint (default: None)')
-    parser.add_argument('--cycle', default=3, type=int,
+    parser.add_argument('--cycle', default=5, type=int,
                         help='---')
     parser.add_argument('--result_dir', type=str, default='saved', 
                         help='directory for saving results')

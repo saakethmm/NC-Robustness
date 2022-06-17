@@ -110,7 +110,7 @@ class Adv_Trainer(BaseTrainer):
                 data, label = data.to(self.device), label.long().to(self.device)
                 
                 # Adv training steps
-                global_noise_data = torch.zeros([data.shape[0], 3, 32, 32]).to(self.device)
+                global_noise_data = torch.zeros([data.shape[0], 3, 32, 32]).to(self.device) 
                 for j in range(self.adv_repeats):
                     # Ascend on the global noise
                     noise_batch = global_noise_data.clone().requires_grad_(True).to(self.device)

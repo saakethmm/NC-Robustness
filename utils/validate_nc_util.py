@@ -87,7 +87,7 @@ def compute_info(config, device, model, fc_features, dataloader, do_adv=False):
     top5 = AverageMeter()
     # Mean and Std transformation for doing adv training
     # MODIFIED: 
-    pdb.set_trace()
+    # pdb.set_trace()
     if config["data_loader"]["type"]== "CIFAR10DataLoader" :
         dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(device)
         dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(device)

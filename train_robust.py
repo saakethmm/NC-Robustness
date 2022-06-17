@@ -106,7 +106,7 @@ def main(config: ConfigParser):
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default='./config_robust_train_cifar100.json', type=str,
+    args.add_argument('-c', '--config', default='./config_robust_train.json', type=str,
                       help='config file path (default: None)')
     args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
