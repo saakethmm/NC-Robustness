@@ -47,19 +47,10 @@ class Adv_Trainer(BaseTrainer):
         self.val_acc = 0
         self.test_val_acc = 0
         
-        # Data mean and std, (cifar10)  MODIFIED:normalization
+        # Data mean and std, (cifar10)
+        self.dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(self.device)
+        self.dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(self.device)
         
-        if config["data_loader"]["type"]== "CIFAR100DataLoader" :
-            self.dmean = torch.tensor([0.4914, 0.4822, 0.4465]).to(self.device)
-            self.dstd = torch.tensor([0.2023, 0.1994, 0.2010]).to(self.device)
-        elif config["data_loader"]["type"]== "CIFAR1000DataLoader" :
-            self.dmean = torch.tensor([0.5071, 0.4867, 0.4408]).to(self.device)
-            self.dstd = torch.tensor([0.2675, 0.2565, 0.2761]).to(self.device)
-        elif config["data_loader"]["type"]== "MiniImageNetDataLoader" :
-            self.dmean = torch.tensor([0.485, 0.456, 0.406]).to(self.device)
-            self.dstd = torch.tensor([0.229, 0.224, 0.225]).to(self.device)
-        else :
-            raise NotImplementedError
         cfg_trainer = config['trainer']
         # OCNN related
         self.ocnn = cfg_trainer["OCNN"]
@@ -110,7 +101,7 @@ class Adv_Trainer(BaseTrainer):
                 data, label = data.to(self.device), label.long().to(self.device)
                 
                 # Adv training steps
-                global_noise_data = torch.zeros([data.shape[0], 3, 32, 32]).to(self.device) 
+                global_noise_data = torch.zeros([data.shape[0], 3, 32, 32]).to(self.device)
                 for j in range(self.adv_repeats):
                     # Ascend on the global noise
                     noise_batch = global_noise_data.clone().requires_grad_(True).to(self.device)

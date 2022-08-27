@@ -31,6 +31,12 @@ CIFAR100_STD = [0.2675, 0.2565, 0.2761]
 CIFAR100_TRANSFORM = trans.Compose([
     trans.ToTensor()])
 
+MINI_SIZE = 84
+MINI_MEAN = [0.485, 0.456, 0.406]
+MINI_STD = [0.229, 0.224, 0.225]
+MINI_TRANSFORM = trans.Compose([
+    trans.ToTensor()])
+
 MNIST_SIZE = 28
 MNIST_MEAN = [0.5]
 MNIST_STD = [1.0]
@@ -95,24 +101,25 @@ def get_preds(model, inputs, dataset_name, correct_class=None, batch_size=25, re
     for i in range(num_batches):
         upper = min((i + 1) * batch_size, inputs.size(0))
         input = apply_normalization(inputs[(i * batch_size):upper], dataset_name)
-        input_var = torch.autograd.Variable(input.cuda(), volatile=True)
-        output = softmax.forward(model.forward(input_var))
-        if correct_class is None:
-            prob, pred = output.max(1)
-        else:
-            prob, pred = output[:, correct_class], torch.autograd.Variable(torch.ones(output.size()) * correct_class)
-        if return_cpu:
-            prob = prob.data.cpu()
-            pred = pred.data.cpu()
-        else:
-            prob = prob.data
-            pred = pred.data
-        if i == 0:
-            all_probs = prob
-            all_preds = pred
-        else:
-            all_probs = torch.cat((all_probs, prob), 0)
-            all_preds = torch.cat((all_preds, pred), 0)
+        # input_var = torch.autograd.Variable(input.cuda(), volatile=True)
+        with torch.no_grad():
+            output = softmax.forward(model.forward(input.cuda()))
+            if correct_class is None:
+                prob, pred = output.max(1)
+            else:
+                prob, pred = output[:, correct_class], torch.autograd.Variable(torch.ones(output.size()) * correct_class)
+            if return_cpu:
+                prob = prob.data.cpu()
+                pred = pred.data.cpu()
+            else:
+                prob = prob.data
+                pred = pred.data
+            if i == 0:
+                all_probs = prob
+                all_preds = pred
+            else:
+                all_probs = torch.cat((all_probs, prob), 0)
+                all_preds = torch.cat((all_preds, pred), 0)
     return all_preds, all_probs
 
 

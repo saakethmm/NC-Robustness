@@ -10,16 +10,16 @@ import models.loss as module_loss
 import models.metric as module_metric
 import models.model as module_arch
 from parse_config import ConfigParser
-from trainer import Trainer, Adv_Trainer
+from trainer import Trainer
 from collections import OrderedDict
 import random
+import os
+import pdb
 from utils import set_seed
 import torchvision.transforms as transforms
 import torchvision
 import torch.nn as nn
-import os
-from validate_pgd import validate_pgd
-os.environ['CUDA_VISIBLE_DEVICES']='6'
+os.environ['CUDA_VISIBLE_DEVICES']='7'
 import setproctitle
 setproctitle.setproctitle('NC@xinshiduo')
 
@@ -64,9 +64,9 @@ def main(config: ConfigParser):
 
     # build model architecture, then print to console
     model = config.initialize('arch', module_arch)
-
-    train_loss = getattr(module_loss, config['train_loss'])
-    val_loss = getattr(module_loss, config['val_loss'])
+    # pdb.set_trace()
+    train_loss = getattr(module_loss, config['train_loss']) #config.initialize('train_loss', module_loss)#
+    val_loss = getattr(module_loss, config['val_loss']) #config.initialize('val_loss', module_loss)#
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     logger.info(str(model).split('\n')[-1])
@@ -85,9 +85,8 @@ def main(config: ConfigParser):
     optimizer = config.initialize('optimizer', torch.optim, trainable_params)
 
     lr_scheduler = config.initialize('lr_scheduler', torch.optim.lr_scheduler, optimizer)
-    print(next(model.parameters()).device)
-    # Changed below for adv. training
-    trainer = Adv_Trainer(model, train_loss, metrics, optimizer,
+
+    trainer = Trainer(model, train_loss, metrics, optimizer,
                       config=config,
                       data_loader=data_loader,
                       valid_data_loader=valid_data_loader,
@@ -98,26 +97,21 @@ def main(config: ConfigParser):
     trainer.train()
     logger = config.get_logger('trainer', config['trainer']['verbosity'])
     cfg_trainer = config['trainer']
-    
-    # After training, run the pgd attacker
-    print(next(model.parameters()).device)
-    validate_pgd(test_data_loader, model, config) #TODO:
 
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')
-    args.add_argument('-c', '--config', default='./config_robust_train_cifar100.json', type=str,
+    args.add_argument('-c', '--config', default='./config_cifar100_standard.json', type=str,
                       help='config file path (default: None)')
     args.add_argument('-r', '--resume', default=None, type=str,
                       help='path to latest checkpoint (default: None)')
-    args.add_argument('-d', '--device', default=0, type=str,
+    args.add_argument('-d', '--device', default=None, type=str,
                       help='indices of GPUs to enable (default: all)')
 
     # custom cli options to modify configuration from default values given in json file.
     CustomArgs = collections.namedtuple('CustomArgs', 'flags type target')
     options = [
         CustomArgs(['--lr', '--learning_rate'], type=float, target=('optimizer', 'args', 'lr')),
-        CustomArgs(['--OCNN', '--OCNN'], type=bool, target=('trainer', 'OCNN')),
         CustomArgs(['--bs', '--batch_size'], type=int, target=('data_loader', 'args', 'batch_size')),
         CustomArgs(['--percent', '--percent'], type=float, target=('trainer', 'percent')),
         CustomArgs(['--conv', '--conv_layer'], type=str, target=('arch', 'args', 'conv_layer_type')),

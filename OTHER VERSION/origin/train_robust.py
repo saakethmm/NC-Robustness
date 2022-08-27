@@ -19,7 +19,7 @@ import torchvision
 import torch.nn as nn
 import os
 from validate_pgd import validate_pgd
-os.environ['CUDA_VISIBLE_DEVICES']='6'
+os.environ['CUDA_VISIBLE_DEVICES']='0'
 import setproctitle
 setproctitle.setproctitle('NC@xinshiduo')
 
